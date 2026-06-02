@@ -12,18 +12,20 @@ function SearchBar({ onSearch }) {
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <input
-        type="text"
-        placeholder="Search movies or series..."
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-      />
+    <div className="search-container">
+      <form onSubmit={handleSubmit}>
+        <input
+          type="text"
+          placeholder="Search movies or series..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
 
-      <button type="submit">
-        Search
-      </button>
-    </form>
+        <button type="submit">
+          Search
+        </button>
+      </form>
+    </div>
   );
 }
 

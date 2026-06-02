@@ -4,7 +4,7 @@ import { searchMovies } from "./services/api";
 import MovieCard from "./components/MovieCard";
 function App() {
   const [results, setResults] = useState([]);
-
+  const [selectedItem, setSelectedItem] = useState(null);
   const handleSearch = async (query) => {
     try {
       const data = await searchMovies(query);
@@ -15,8 +15,10 @@ function App() {
   };
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h1>BingeBuddy</h1>
+    <div className="container">
+      <h1 className="logo">
+        Binge<span>Buddy</span>
+      </h1>
 
       <SearchBar onSearch={handleSearch} />
 
@@ -25,9 +27,21 @@ function App() {
           <MovieCard
             key={item.id}
             item={item}
+            onSelect={setSelectedItem}
           />
         ))}
       </div>
+      {selectedItem && (
+        <div className="details-section">
+          <h2>{selectedItem.title || selectedItem.name}</h2>
+
+          <p>
+            Rating: ⭐ {selectedItem.vote_average?.toFixed(1)}
+          </p>
+
+          <p>{selectedItem.overview}</p>
+        </div>
+      )}
     </div>
   );
 }
