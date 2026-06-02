@@ -1,7 +1,7 @@
 import { useState } from "react";
 import SearchBar from "./components/SearchBar";
 import { searchMovies } from "./services/api";
-
+import MovieCard from "./components/MovieCard";
 function App() {
   const [results, setResults] = useState([]);
 
@@ -20,11 +20,12 @@ function App() {
 
       <SearchBar onSearch={handleSearch} />
 
-      <div>
+      <div className="movies-grid">
         {results.map((item) => (
-          <div key={item.id}>
-            <h3>{item.title || item.name}</h3>
-          </div>
+          <MovieCard
+            key={item.id}
+            item={item}
+          />
         ))}
       </div>
     </div>
