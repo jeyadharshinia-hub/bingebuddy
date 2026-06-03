@@ -1,80 +1,55 @@
 import { useState } from "react";
-import { searchMovies } from "../services/api";
 
-function SearchBar({ onSearch }) {
+function SearchBar({ onSearch, setSearchText, suggestions, setSuggestions }) {
   const [query, setQuery] = useState("");
-  const [suggestions, setSuggestions] = useState([]);
+
+  const handleChange = (e) => {
+    const value = e.target.value;
+    setQuery(value);
+    setSearchText(value);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!query.trim()) return;
     onSearch(query);
-    setSuggestions([]);
   };
 
-  const handleChange = async (e) => {
-    const value = e.target.value;
-    setQuery(value);
-
-    if (value.length < 3) {
-      setSuggestions([]);
-      return;
-    }
-
-    try {
-      const data = await searchMovies(value);
-
-      const filtered = data
-        .filter((item) => item.poster_path)
-        .slice(0, 6);
-
-      setSuggestions(filtered);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const handleSelect = (movie) => {
-    const name = movie.title || movie.name;
-    setQuery(name);
-    setSuggestions([]);
-    onSearch(name);
-  };
-
- return (
-  <div className="search-container">
-    <form onSubmit={handleSubmit}>
-      
-      <div className="search-wrapper">
+  return (
+    <div className="search-wrapper">
+      <form onSubmit={handleSubmit} className="search-container">
         <input
-          type="text"
           value={query}
           onChange={handleChange}
-          placeholder="Search movies, series..."
+          placeholder="Search movies..."
         />
+        <button>Search</button>
+      </form>
 
-        {suggestions.length > 0 && (
-          <ul className="suggestions">
-            {suggestions.map((movie) => (
-              <li
-                key={movie.id}
-                onClick={() => {
-                  setQuery(movie.title || movie.name);
-                  setSuggestions([]);
-                  onSearch(movie.title || movie.name);
-                }}
-              >
-                {movie.title || movie.name}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      {/* ✅ Suggestions dropdown */}
+      {suggestions?.length > 0 && (
+        <ul className="suggestions">
+          {suggestions.map((movie) => (
+            <li
+              key={movie.id}
+              onClick={() => {
+                const name = movie.title || movie.name;
 
-      <button>Search</button>
-    </form>
-  </div>
-);
+                setQuery(name);
+                setSearchText(name);
+
+                setSuggestions([]);   // close dropdown
+
+                onSearch(name);       // 🔥 THIS is the missing part
+              }}
+            >
+              {movie.title || movie.name}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 export default SearchBar;

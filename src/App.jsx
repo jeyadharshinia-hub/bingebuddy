@@ -1,7 +1,8 @@
-
 import SearchBar from "./components/SearchBar";
 import MovieCard from "./components/MovieCard";
 import Navbar from "./components/Navbar";
+import useDebounce from "./hooks/useDebounce";
+
 import {
   searchMovies,
   getMovieDetails,
@@ -21,22 +22,14 @@ function App() {
   const [trending, setTrending] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [searchText, setSearchText] = useState("");
 
-  const handleSearch = async (query) => {
-    try {
-      setHasSearched(true);
-      setSelectedItem(null);
-      const data = await searchMovies(query);
-      setResults(data);
-    } catch (error) {
-      console.error(error);
-    }
-  };
+  const debouncedQuery = useDebounce(searchText, 500);
 
   useEffect(() => {
     const fetchTrending = async () => {
       const data = await getTrending();
-
       setTrending(data);
 
       if (data.length > 0) {
@@ -46,6 +39,37 @@ function App() {
 
     fetchTrending();
   }, []);
+
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      if (!debouncedQuery.trim()) {
+        setSuggestions([]);
+        return;
+      }
+
+      try {
+        const data = await searchMovies(debouncedQuery);
+        setSuggestions(data.slice(0, 5));
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    fetchSuggestions();
+  }, [debouncedQuery]);
+
+  const handleSearch = async (query) => {
+    setHasSearched(true);
+
+    try {
+      const data = await searchMovies(query);
+      setResults(data);
+      setSelectedItem(null);
+      setSuggestions([]);  // important reset
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const handleSelect = async (item) => {
     const type = item.media_type === "tv" ? "tv" : "movie";
@@ -73,69 +97,74 @@ function App() {
       <h1 className="logo">
         Binge<span>Buddy</span>
       </h1>
-      <SearchBar onSearch={handleSearch} />
+      <SearchBar
+        onSearch={handleSearch}
+        setSearchText={setSearchText}
+        suggestions={suggestions}
+        setSuggestions={setSuggestions}
+      />
 
-{/* HERO (only before search) */}
-{!hasSearched && heroMovie && (
-  <div className="hero-banner"
-    style={{
-      backgroundImage: heroMovie.backdrop_path
-        ? `linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.9)),
+      {/* HERO (only before search) */}
+      {!hasSearched && heroMovie && (
+        <div className="hero-banner"
+          style={{
+            backgroundImage: heroMovie.backdrop_path
+              ? `linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.9)),
         url(https://image.tmdb.org/t/p/original${heroMovie.backdrop_path})`
-        : "none",
-    }}
-  >
-    <div className="hero-content">
-      <h1>{heroMovie.title || heroMovie.name}</h1>
-      <p>⭐ {heroMovie.vote_average?.toFixed(1)}</p>
-      <p>{heroMovie.overview}</p>
+              : "none",
+          }}
+        >
+          <div className="hero-content">
+            <h1>{heroMovie.title || heroMovie.name}</h1>
+            <p>⭐ {heroMovie.vote_average?.toFixed(1)}</p>
+            <p>{heroMovie.overview}</p>
 
-      <button
-        className="hero-btn"
-        onClick={() => handleSelect(heroMovie)}
-      >
-        View Details
-      </button>
-    </div>
-  </div>
-)}
+            <button
+              className="hero-btn"
+              onClick={() => handleSelect(heroMovie)}
+            >
+              View Details
+            </button>
+          </div>
+        </div>
+      )}
       {!hasSearched && (
-  <>
-    <h2>🔥 Trending Today</h2>
+        <>
+          <h2>🔥 Trending Today</h2>
 
-    <div className="movies-grid">
-      {trending.map((item) => (
-        <MovieCard
-          key={item.id}
-          item={item}
-          onSelect={handleSelect}
-          isLoggedIn={isLoggedIn}
-        />
-      ))}
-    </div>
-  </>
-)}
+          <div className="movies-grid">
+            {trending.map((item) => (
+              <MovieCard
+                key={item.id}
+                item={item}
+                onSelect={handleSelect}
+                isLoggedIn={isLoggedIn}
+              />
+            ))}
+          </div>
+        </>
+      )}
       {hasSearched && (
-  <>
-    <h2>🔎 Search Results</h2>
+        <>
+          <h2>🔎 Search Results</h2>
 
-    {results.length === 0 ? (
-      <p style={{ color: "gray" }}>No results found</p>
-    ) : (
-      <div className="movies-grid">
-        {results.map((item) => (
-          <MovieCard
-            key={item.id}
-            item={item}
-            onSelect={handleSelect}
-            isLoggedIn={isLoggedIn}
-          />
-        ))}
-      </div>
-    )}
-  </>
-)}
-      
+          {results.length === 0 ? (
+            <p style={{ color: "gray" }}>No results found</p>
+          ) : (
+            <div className="movies-grid">
+              {results.map((item) => (
+                <MovieCard
+                  key={item.id}
+                  item={item}
+                  onSelect={handleSelect}
+                  isLoggedIn={isLoggedIn}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
 
       {loading && <p className="loading">Loading details...</p>}
       {selectedItem && (

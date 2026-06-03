@@ -44,6 +44,7 @@ body {
   border: none;
   border-radius: 8px;
   font-size: 16px;
+  
 }
 
 .search-container button {
@@ -382,28 +383,35 @@ body {
   right: 0;
 
   background: #1b1b1b;
-  border: 1px solid #333;
   border-radius: 10px;
 
-  max-height: 250px;
-  overflow-y: auto;
+  list-style: none;
+  padding: 0;
+  margin: 5px 0;
 
-  z-index: 999;
-  margin-top: 5px;
+  z-index: 1000;
 }
 
 .suggestions li {
-  padding: 10px 12px;
+  padding: 12px;
   cursor: pointer;
-  color: white;
-  font-size: 14px;
-  border-bottom: 1px solid #2a2a2a;
+  border-bottom: 1px solid #333;
+  display: block;   /* ✅ important */
 }
 
 .suggestions li:hover {
   background: #e50914;
   color: white;
 }
+
+.suggestions img {
+  width: 35px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+
 
 @media (max-width: 768px) {
   .movies-grid {
