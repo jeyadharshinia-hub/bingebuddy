@@ -1,4 +1,4 @@
-import { useState } from "react";
+
 import SearchBar from "./components/SearchBar";
 import MovieCard from "./components/MovieCard";
 import Navbar from "./components/Navbar";
@@ -8,77 +8,136 @@ import {
   getMovieCast,
 } from "./services/api";
 
+import { useState, useEffect } from "react";
 
-import { useEffect } from "react";
 import { getTrending } from "./services/api";
 
 function App() {
-
+  const [isLoggedIn] = useState(false);
+  const [heroMovie, setHeroMovie] = useState(null);
   const [results, setResults] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [cast, setCast] = useState([]);
   const [trending, setTrending] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+
   const handleSearch = async (query) => {
     try {
+      setHasSearched(true);
+      setSelectedItem(null);
       const data = await searchMovies(query);
       setResults(data);
     } catch (error) {
       console.error(error);
     }
   };
-  
+
   useEffect(() => {
     const fetchTrending = async () => {
       const data = await getTrending();
+
       setTrending(data);
+
+      if (data.length > 0) {
+        setHeroMovie(data[0]);
+      }
     };
 
     fetchTrending();
   }, []);
+
   const handleSelect = async (item) => {
     const type = item.media_type === "tv" ? "tv" : "movie";
 
     try {
+      setLoading(true);
+
       const details = await getMovieDetails(item.id, type);
       const castData = await getMovieCast(item.id, type);
 
       setSelectedItem(details);
       setCast(castData.slice(0, 8));
+
     } catch (error) {
       console.error(error);
+    } finally {
+      setLoading(false);
     }
   };
+
   return (
-    
+
     <div className="container">
       <Navbar />
       <h1 className="logo">
         Binge<span>Buddy</span>
       </h1>
       <SearchBar onSearch={handleSearch} />
-      <h2>🔥 Trending Today</h2>
 
-      <div className="movies-grid">
-        {trending.map((item) => (
-          <MovieCard
-            key={item.id}
-            item={item}
-            onSelect={handleSelect}
-          />
-        ))}
-      </div>
-      
+{/* HERO (only before search) */}
+{!hasSearched && heroMovie && (
+  <div className="hero-banner"
+    style={{
+      backgroundImage: heroMovie.backdrop_path
+        ? `linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.9)),
+        url(https://image.tmdb.org/t/p/original${heroMovie.backdrop_path})`
+        : "none",
+    }}
+  >
+    <div className="hero-content">
+      <h1>{heroMovie.title || heroMovie.name}</h1>
+      <p>⭐ {heroMovie.vote_average?.toFixed(1)}</p>
+      <p>{heroMovie.overview}</p>
 
+      <button
+        className="hero-btn"
+        onClick={() => handleSelect(heroMovie)}
+      >
+        View Details
+      </button>
+    </div>
+  </div>
+)}
+      {!hasSearched && (
+  <>
+    <h2>🔥 Trending Today</h2>
+
+    <div className="movies-grid">
+      {trending.map((item) => (
+        <MovieCard
+          key={item.id}
+          item={item}
+          onSelect={handleSelect}
+          isLoggedIn={isLoggedIn}
+        />
+      ))}
+    </div>
+  </>
+)}
+      {hasSearched && (
+  <>
+    <h2>🔎 Search Results</h2>
+
+    {results.length === 0 ? (
+      <p style={{ color: "gray" }}>No results found</p>
+    ) : (
       <div className="movies-grid">
         {results.map((item) => (
           <MovieCard
             key={item.id}
             item={item}
             onSelect={handleSelect}
+            isLoggedIn={isLoggedIn}
           />
         ))}
       </div>
+    )}
+  </>
+)}
+      
 
+      {loading && <p className="loading">Loading details...</p>}
       {selectedItem && (
         <div className="details-section">
 

@@ -1,12 +1,42 @@
-function MovieCard({ item, onSelect }) {
+function MovieCard({
+    item,
+    onSelect,
+    isLoggedIn
+}) {
     const imageUrl = item.poster_path
         ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
         : "https://via.placeholder.com/300x450?text=No+Image";
 
     const handleWatchlist = (e) => {
         e.stopPropagation();
-        alert("Please login to add to watchlist");
+
+        if (!isLoggedIn) {
+            alert("Please login to add movies to Watchlist");
+            return;
+        }
+
+        const watchlist =
+            JSON.parse(localStorage.getItem("watchlist")) || [];
+
+        const exists = watchlist.find(
+            (m) => m.id === item.id
+        );
+
+        if (exists) {
+            alert("Already in Watchlist ❤️");
+            return;
+        }
+
+        watchlist.push(item);
+
+        localStorage.setItem(
+            "watchlist",
+            JSON.stringify(watchlist)
+        );
+
+        alert("Added to Watchlist ❤️");
     };
+
 
     return (
         <div
