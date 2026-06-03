@@ -39,3 +39,15 @@ export const getMovieCast = async (id, type) => {
 
   return res.data.cast;
 };
+export const getTrending = async () => {
+  const res = await axios.get(
+    `${BASE_URL}/trending/all/day`,
+    {
+      params: {
+        api_key: API_KEY,
+      },
+    }
+  );
+
+  return res.data.results;
+};

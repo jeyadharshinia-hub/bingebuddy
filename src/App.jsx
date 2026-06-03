@@ -1,17 +1,23 @@
 import { useState } from "react";
 import SearchBar from "./components/SearchBar";
 import MovieCard from "./components/MovieCard";
+import Navbar from "./components/Navbar";
 import {
   searchMovies,
   getMovieDetails,
   getMovieCast,
 } from "./services/api";
 
+
+import { useEffect } from "react";
+import { getTrending } from "./services/api";
+
 function App() {
+
   const [results, setResults] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [cast, setCast] = useState([]);
-
+  const [trending, setTrending] = useState([]);
   const handleSearch = async (query) => {
     try {
       const data = await searchMovies(query);
@@ -20,7 +26,15 @@ function App() {
       console.error(error);
     }
   };
+  
+  useEffect(() => {
+    const fetchTrending = async () => {
+      const data = await getTrending();
+      setTrending(data);
+    };
 
+    fetchTrending();
+  }, []);
   const handleSelect = async (item) => {
     const type = item.media_type === "tv" ? "tv" : "movie";
 
@@ -35,12 +49,25 @@ function App() {
     }
   };
   return (
+    
     <div className="container">
+      <Navbar />
       <h1 className="logo">
         Binge<span>Buddy</span>
       </h1>
-
       <SearchBar onSearch={handleSearch} />
+      <h2>🔥 Trending Today</h2>
+
+      <div className="movies-grid">
+        {trending.map((item) => (
+          <MovieCard
+            key={item.id}
+            item={item}
+            onSelect={handleSelect}
+          />
+        ))}
+      </div>
+      
 
       <div className="movies-grid">
         {results.map((item) => (
