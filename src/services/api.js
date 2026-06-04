@@ -61,8 +61,6 @@ export const getPersonDetails = async (personId, signal) => {
   return { ...details.data, credits: credits.data };
 };
 
-
-
 export const getGenres = async (type = "movie") => {
   const res = await axios.get(`${BASE_URL}/genre/${type}/list`, {
     params: { api_key: API_KEY },
@@ -70,25 +68,61 @@ export const getGenres = async (type = "movie") => {
   return res.data.genres;
 };
 
+// Fetches all available regions from TMDB
+export const getRegions = async () => {
+  const res = await axios.get(`${BASE_URL}/configuration/countries`, {
+    params: { api_key: API_KEY },
+  });
+  // Returns [{ iso_3166_1: "US", english_name: "United States", native_name: "..." }, ...]
+  return res.data
+    .map((c) => ({ code: c.iso_3166_1, name: c.english_name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+};
+
 export const discoverMovies = async ({
   type = "movie",
   genre = "",
   region = "",
   topRated = false,
+  page = 1,
 } = {}) => {
   const mediaType = type === "tv" ? "tv" : "movie";
 
-  const params = {
-    api_key: API_KEY,
-    with_genres: genre ? String(genre) : undefined,
-    region: region || undefined,
-    sort_by: topRated ? "vote_average.desc" : "popularity.desc",
-    "vote_count.gte": topRated ? 200 : undefined,
+  // Map region code to language code for better coverage
+  const regionToLanguage = {
+    TH: "th",
+    KR: "ko",
+    JP: "ja",
+    CN: "zh",
+    IN: "hi",
+    FR: "fr",
+    ES: "es",
+    PH: "tl",
   };
 
-  const res = await axios.get(`${BASE_URL}/discover/${mediaType}`, {
-    params,
-  });
+  const language = region ? regionToLanguage[region] : undefined;
 
-  return res.data.results;
+  const params = {
+    api_key: API_KEY,
+    page,
+    with_genres: genre ? String(genre) : undefined,
+    sort_by: topRated ? "vote_average.desc" : "popularity.desc",
+    "vote_count.gte": topRated ? 200 : 10,
+  };
+
+  // Use language-based filtering instead of strict origin country
+  // This gives far more results (e.g. Thai language content vs Thai production only)
+  if (region) {
+    params.with_original_language = language || undefined;
+    // Also keep origin country as a secondary hint but don't rely on it alone
+    if (!language) params.with_origin_country = region;
+  }
+
+  const res = await axios.get(`${BASE_URL}/discover/${mediaType}`, { params });
+
+  return {
+    results: res.data.results,
+    total_pages: Math.min(res.data.total_pages, 500),
+    total_results: res.data.total_results,
+  };
 };

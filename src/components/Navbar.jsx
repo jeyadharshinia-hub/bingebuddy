@@ -20,10 +20,8 @@ export default function Navbar({ onFilterChange, currentFilter }) {
   const [genres, setGenres] = useState([]);
   const debouncedNav = useDebounce(navQuery, 400);
 
-
-
   useEffect(() => {
-    getGenres("movie").then(setGenres).catch(() => { });
+    getGenres("movie").then(setGenres).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -34,7 +32,7 @@ export default function Navbar({ onFilterChange, currentFilter }) {
     let active = true;
     searchMovies(debouncedNav)
       .then((data) => { if (active) setNavSuggestions(data.slice(0, 5)); })
-      .catch(() => { });
+      .catch(() => {});
     return () => { active = false; };
   }, [debouncedNav]);
 
@@ -76,13 +74,29 @@ export default function Navbar({ onFilterChange, currentFilter }) {
     setShowHistory(false);
   };
 
-  const applyFilters = () => {
-    navigate(
-      `/discover?type=${currentFilter?.type || ""}&language=${currentFilter?.language || ""}&genre=${currentFilter?.genre || ""}&region=${currentFilter?.region || ""}`
-    );
-  };
+  const languages = [
+    { code: "en", name: "English" },
+    { code: "ko", name: "Korean" },
+    { code: "ja", name: "Japanese" },
+    { code: "zh", name: "Chinese" },
+    { code: "ta", name: "Tamil" },
+    { code: "hi", name: "Hindi" },
+    { code: "th", name: "Thai" },
+    { code: "tl", name: "Filipino" },
+  ];
 
+  const regions = [
+    { code: "US", name: "USA" },
+    { code: "IN", name: "India" },
+    { code: "KR", name: "Korea" },
+    { code: "JP", name: "Japan" },
+    { code: "CN", name: "China" },
+    { code: "TH", name: "Thailand" },
+    { code: "PH", name: "Philippines" },
+    { code: "GB", name: "UK" },
+  ];
 
+  const activeCount = Object.values(currentFilter || {}).filter(Boolean).length;
 
   return (
     <>
@@ -95,6 +109,7 @@ export default function Navbar({ onFilterChange, currentFilter }) {
           <Link to="/?section=movies">Movies</Link>
           <Link to="/?section=series">Series</Link>
           <Link to="/watchlist">❤️ Watchlist</Link>
+          <Link to="/discover">🎯 Discover</Link>
         </div>
 
         {/* Navbar Search */}
@@ -118,7 +133,10 @@ export default function Navbar({ onFilterChange, currentFilter }) {
                   )}
                   <div>
                     <span>{item.title || item.name}</span>
-                    <small>{item.media_type === "tv" ? "TV Series" : "Movie"} • {(item.release_date || item.first_air_date || "").slice(0, 4)}</small>
+                    <small>
+                      {item.media_type === "tv" ? "TV Series" : "Movie"} •{" "}
+                      {(item.release_date || item.first_air_date || "").slice(0, 4)}
+                    </small>
                   </div>
                 </li>
               ))}
@@ -141,14 +159,15 @@ export default function Navbar({ onFilterChange, currentFilter }) {
           )}
         </div>
 
-        {/* Filter */}
+        {/* Filter — now actually toggles open */}
         <div className="filter-wrapper">
           <button
             className="filter-toggle-btn"
-            onClick={() => navigate("/discover")}
+            onClick={() => setShowFilter((prev) => !prev)}
           >
-            ⚙️ Filter
+            ⚙️ Filter {activeCount > 0 && <span className="filter-badge">{activeCount}</span>}
           </button>
+
           {showFilter && (
             <div className="filter-panel">
               <h4>Filter Results</h4>
@@ -166,33 +185,16 @@ export default function Navbar({ onFilterChange, currentFilter }) {
                 ))}
               </div>
 
-              <label>Language</label>
-              <label>🌍 Popular Languages</label>
-
+              <label>🌍 Language</label>
               <div className="filter-chips">
-                {[
-                  { code: "en", name: "English" },
-                  { code: "ko", name: "Korean" },
-                  { code: "ja", name: "Japanese" },
-                  { code: "zh", name: "Chinese" },
-                  { code: "ta", name: "Tamil" },
-                  { code: "hi", name: "Hindi" },
-                  { code: "th", name: "Thai" },
-                  { code: "tl", name: "Filipino" }
-                ].map((lang) => (
+                {languages.map((lang) => (
                   <button
                     key={lang.code}
-                    className={`chip ${currentFilter?.language === lang.code
-                      ? "active"
-                      : ""
-                      }`}
+                    className={`chip ${currentFilter?.language === lang.code ? "active" : ""}`}
                     onClick={() =>
                       onFilterChange?.({
                         ...currentFilter,
-                        language:
-                          currentFilter?.language === lang.code
-                            ? ""
-                            : lang.code,
+                        language: currentFilter?.language === lang.code ? "" : lang.code,
                       })
                     }
                   >
@@ -202,31 +204,15 @@ export default function Navbar({ onFilterChange, currentFilter }) {
               </div>
 
               <label>🌎 Region</label>
-
               <div className="filter-chips">
-                {[
-                  { code: "US", name: "USA" },
-                  { code: "IN", name: "India" },
-                  { code: "KR", name: "Korea" },
-                  { code: "JP", name: "Japan" },
-                  { code: "CN", name: "China" },
-                  { code: "TH", name: "Thailand" },
-                  { code: "PH", name: "Philippines" },
-                  { code: "GB", name: "UK" }
-                ].map((region) => (
+                {regions.map((region) => (
                   <button
                     key={region.code}
-                    className={`chip ${currentFilter?.region === region.code
-                      ? "active"
-                      : ""
-                      }`}
+                    className={`chip ${currentFilter?.region === region.code ? "active" : ""}`}
                     onClick={() =>
                       onFilterChange?.({
                         ...currentFilter,
-                        region:
-                          currentFilter?.region === region.code
-                            ? ""
-                            : region.code,
+                        region: currentFilter?.region === region.code ? "" : region.code,
                       })
                     }
                   >
@@ -235,13 +221,18 @@ export default function Navbar({ onFilterChange, currentFilter }) {
                 ))}
               </div>
 
-              <label>Genre</label>
+              <label>🎭 Genre</label>
               <div className="filter-chips genre-chips">
                 {genres.map((g) => (
                   <button
                     key={g.id}
                     className={`chip ${currentFilter?.genre === g.id ? "active" : ""}`}
-                    onClick={() => onFilterChange?.({ ...currentFilter, genre: currentFilter?.genre === g.id ? null : g.id })}
+                    onClick={() =>
+                      onFilterChange?.({
+                        ...currentFilter,
+                        genre: currentFilter?.genre === g.id ? null : g.id,
+                      })
+                    }
                   >
                     {g.name}
                   </button>
@@ -253,7 +244,9 @@ export default function Navbar({ onFilterChange, currentFilter }) {
                   <input
                     type="checkbox"
                     checked={!!currentFilter?.topRated}
-                    onChange={(e) => onFilterChange?.({ ...currentFilter, topRated: e.target.checked })}
+                    onChange={(e) =>
+                      onFilterChange?.({ ...currentFilter, topRated: e.target.checked })
+                    }
                   />
                   ⭐ Top Rated (7+)
                 </label>
@@ -261,17 +254,14 @@ export default function Navbar({ onFilterChange, currentFilter }) {
                   <input
                     type="checkbox"
                     checked={!!currentFilter?.ongoing}
-                    onChange={(e) => onFilterChange?.({ ...currentFilter, ongoing: e.target.checked })}
+                    onChange={(e) =>
+                      onFilterChange?.({ ...currentFilter, ongoing: e.target.checked })
+                    }
                   />
                   📺 Ongoing Series
                 </label>
               </div>
-              <button
-                className="apply-filter-btn"
-                onClick={applyFilters}
-              >
-                Apply Filters
-              </button>
+
               <button className="clear-filter-btn" onClick={() => onFilterChange?.({})}>
                 Clear All Filters
               </button>
@@ -299,14 +289,21 @@ export default function Navbar({ onFilterChange, currentFilter }) {
                   </div>
                   <Link to="/profile" className="profile-link">👤 My Profile</Link>
                   <Link to="/watchlist" className="profile-link">❤️ Watchlist</Link>
-                  <button className="logout-btn" onClick={(e) => { e.stopPropagation(); logout(); }}>
+                  <button
+                    className="logout-btn"
+                    onClick={(e) => { e.stopPropagation(); logout(); }}
+                  >
                     🚪 Sign Out
                   </button>
                 </>
               ) : (
                 <button
                   className="signin-prompt"
-                  onClick={(e) => { e.stopPropagation(); setShowProfile(false); setShowLoginModal(true); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowProfile(false);
+                    setShowLoginModal(true);
+                  }}
                 >
                   Sign In / Register
                 </button>
