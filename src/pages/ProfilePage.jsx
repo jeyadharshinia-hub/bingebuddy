@@ -1,5 +1,5 @@
 import { useAuth } from "../hooks/useAuth";
-import useWatchlist from "../hooks/useWatchlist";
+import { useWatchlist } from "../hooks/useWatchlist";
 import useSearchHistory from "../hooks/useSearchHistory";
 import { useNavigate } from "react-router-dom";
 

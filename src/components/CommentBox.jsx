@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
-import useComments from "../hooks/useComments";
+import { useComments } from "../hooks/useComments";
 
 const STARS = [1, 2, 3, 4, 5];
 

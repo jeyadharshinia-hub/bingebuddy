@@ -72,23 +72,23 @@ export const getGenres = async (type = "movie") => {
 
 export const discoverMovies = async ({
   type = "movie",
-  language = "",
   genre = "",
   region = "",
+  topRated = false,
 } = {}) => {
   const mediaType = type === "tv" ? "tv" : "movie";
 
-  const res = await axios.get(
-    `${BASE_URL}/discover/${mediaType}`,
-    {
-      params: {
-        api_key: API_KEY,
-        with_genres: genre,
-        with_original_language: language,
-        region: region,
-      },
-    }
-  );
+  const params = {
+    api_key: API_KEY,
+    with_genres: genre ? String(genre) : undefined,
+    region: region || undefined,
+    sort_by: topRated ? "vote_average.desc" : "popularity.desc",
+    "vote_count.gte": topRated ? 200 : undefined,
+  };
+
+  const res = await axios.get(`${BASE_URL}/discover/${mediaType}`, {
+    params,
+  });
 
   return res.data.results;
 };

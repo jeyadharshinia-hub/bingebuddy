@@ -143,7 +143,10 @@ export default function Navbar({ onFilterChange, currentFilter }) {
 
         {/* Filter */}
         <div className="filter-wrapper">
-          <button className="filter-toggle-btn" onClick={() => setShowFilter(!showFilter)}>
+          <button
+            className="filter-toggle-btn"
+            onClick={() => navigate("/discover")}
+          >
             ⚙️ Filter
           </button>
           {showFilter && (
@@ -214,8 +217,8 @@ export default function Navbar({ onFilterChange, currentFilter }) {
                   <button
                     key={region.code}
                     className={`chip ${currentFilter?.region === region.code
-                        ? "active"
-                        : ""
+                      ? "active"
+                      : ""
                       }`}
                     onClick={() =>
                       onFilterChange?.({

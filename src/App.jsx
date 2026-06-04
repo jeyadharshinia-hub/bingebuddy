@@ -10,7 +10,7 @@ import PersonPage from "./pages/PersonPage";
 import ProfilePage from "./pages/ProfilePage";
 import { searchMovies, getMovieDetails, getMovieCast, getTrending, getVideos } from "./services/api";
 import { useAuth } from "./hooks/useAuth";
-import useWatchlist from "./hooks/useWatchlist";
+import { useWatchlist } from "./hooks/useWatchlist";
 import useSearchHistory from "./hooks/useSearchHistory";
 import Discover from "./pages/Discover";
 
@@ -49,22 +49,19 @@ function HomePage({ filter, onNeedLogin }) {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Derived — no useState needed
   const hasSearched = Boolean(urlQuery);
 
   useSearchHistory();
   const { toggleWatchlist, isInWatchlist } = useWatchlist();
 
-  // Fetch trending on mount
   useEffect(() => {
     getTrending().then(setTrending).catch(console.error);
   }, []);
 
-  // React to URL query param
   useEffect(() => {
     if (!urlQuery) return;
     let active = true;
-    
+
     searchMovies(urlQuery)
       .then((data) => {
         if (!active) return;
@@ -94,7 +91,6 @@ function HomePage({ filter, onNeedLogin }) {
     if (!toggleWatchlist(item)) onNeedLogin();
   };
 
-  // Filter trending by section
   const heroItems = trending.slice(0, 8);
   let displayTrending = trending;
   if (urlSection === "movies") displayTrending = trending.filter((i) => i.media_type === "movie");
@@ -174,26 +170,16 @@ function DetailPage({ type, onNeedLogin }) {
   const [loading, setLoading] = useState(true);
   const { toggleWatchlist, isInWatchlist } = useWatchlist();
 
-  // Track whether this is the first mount to avoid extra re-renders
   const prevIdRef = useRef(null);
 
   useEffect(() => {
     window.scrollTo(0, 0);
     let active = true;
 
-    // Only reset to loading state if navigating to a different item
-    // Use a timer to defer the setState out of the synchronous effect body
-    let resetTimer;
-    if (prevIdRef.current !== null && prevIdRef.current !== id) {
-      resetTimer = setTimeout(() => {
-        if (active) {
-          setItem(null);
-          setCast([]);
-          setTrailerKey(null);
-          setLoading(true);
-        }
-      }, 0);
-    }
+    // Defer setLoading(true) so it never fires synchronously in the effect body
+    const resetTimer = prevIdRef.current !== null && prevIdRef.current !== id
+      ? setTimeout(() => { if (active) setLoading(true); }, 0)
+      : null;
     prevIdRef.current = id;
 
     Promise.all([
@@ -203,18 +189,36 @@ function DetailPage({ type, onNeedLogin }) {
     ])
       .then(([details, castData, trailer]) => {
         if (!active) return;
-        setItem(details);
+
+        const formattedItem = type === "tv"
+          ? {
+              ...details,
+              seasons: details.number_of_seasons ?? 0,
+              episodes: details.number_of_episodes ?? 0,
+              status: details.status,
+              airStatus: details.status,
+              firstAir: details.first_air_date,
+              lastAir: details.last_air_date,
+              nextEpisode: details.next_episode_to_air || null,
+              inProduction: details.in_production,
+              lastEpisode: details.last_episode_to_air || null,
+            }
+          : details;
+
+        setItem(formattedItem);
         setCast(castData.slice(0, 10));
         setTrailerKey(trailer);
-        setLoading(false);
       })
       .catch((err) => {
-        if (active) { console.error(err); setLoading(false); }
+        if (active) console.error(err);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
 
     return () => {
       active = false;
-      clearTimeout(resetTimer);
+      if (resetTimer) clearTimeout(resetTimer);
     };
   }, [id, type]);
 
