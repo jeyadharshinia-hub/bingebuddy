@@ -1,68 +1,30 @@
-function MovieCard({
-    item,
-    onSelect,
-    isLoggedIn
-}) {
-    const imageUrl = item.poster_path
-        ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
-        : "https://via.placeholder.com/300x450?text=No+Image";
+function MovieCard({ item, onSelect, isInWatchlist, onWatchlist }) {
+  const imageUrl = item.poster_path
+    ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
+    : "https://via.placeholder.com/300x450?text=No+Image";
 
-    const handleWatchlist = (e) => {
-        e.stopPropagation();
+  const handleWatchlist = (e) => {
+    e.stopPropagation(); // prevent triggering onSelect (detail page nav)
+    onWatchlist(item);   // useWatchlist hook handles add/remove toggle
+  };
 
-        if (!isLoggedIn) {
-            alert("Please login to add movies to Watchlist");
-            return;
-        }
+  return (
+    <div className="movie-card" onClick={() => onSelect(item)}>
+      <img src={imageUrl} alt={item.title || item.name} loading="lazy" />
 
-        const watchlist =
-            JSON.parse(localStorage.getItem("watchlist")) || [];
+      <h3>{item.title || item.name}</h3>
 
-        const exists = watchlist.find(
-            (m) => m.id === item.id
-        );
+      <p>⭐ {item.vote_average?.toFixed(1)}</p>
 
-        if (exists) {
-            alert("Already in Watchlist ❤️");
-            return;
-        }
-
-        watchlist.push(item);
-
-        localStorage.setItem(
-            "watchlist",
-            JSON.stringify(watchlist)
-        );
-
-        alert("Added to Watchlist ❤️");
-    };
-
-
-    return (
-        <div
-            className="movie-card"
-            onClick={() => onSelect(item)}
-        >
-            <img
-                src={imageUrl}
-                alt={item.title || item.name}
-            />
-
-            <h3>{item.title || item.name}</h3>
-
-            <p>
-                ⭐ {item.vote_average?.toFixed(1)}
-            </p>
-
-            <button
-                className="watchlist-btn"
-                onClick={handleWatchlist}
-            >
-                <span>🤍</span>
-                <span>Add to Watchlist</span>
-            </button>
-        </div>
-    );
+      <button
+        className={`watchlist-btn ${isInWatchlist ? "in-watchlist" : ""}`}
+        onClick={handleWatchlist}
+      >
+        <span>{isInWatchlist ? "❤️" : "🤍"}</span>
+        <span>{isInWatchlist ? "Saved" : "Add to Watchlist"}</span>
+      </button>
+    </div>
+  );
 }
 
 export default MovieCard;
