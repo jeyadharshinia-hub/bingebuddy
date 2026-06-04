@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-function SearchBar({ onSearch, setSearchText, suggestions, setSuggestions }) {
+function SearchBar({ setSearchText, suggestions, setSuggestions, onSearch }) {
   const [query, setQuery] = useState("");
 
   const handleChange = (e) => {
@@ -15,6 +15,15 @@ function SearchBar({ onSearch, setSearchText, suggestions, setSuggestions }) {
     onSearch(query);
   };
 
+  const handleSelect = (movie) => {
+    const name = movie.title || movie.name;
+
+    setQuery(name);
+    setSearchText(name);
+    setSuggestions([]);
+    onSearch(name);
+  };
+
   return (
     <div className="search-wrapper">
       <form onSubmit={handleSubmit} className="search-container">
@@ -26,23 +35,10 @@ function SearchBar({ onSearch, setSearchText, suggestions, setSuggestions }) {
         <button>Search</button>
       </form>
 
-      {/* ✅ Suggestions dropdown */}
       {suggestions?.length > 0 && (
         <ul className="suggestions">
           {suggestions.map((movie) => (
-            <li
-              key={movie.id}
-              onClick={() => {
-                const name = movie.title || movie.name;
-
-                setQuery(name);
-                setSearchText(name);
-
-                setSuggestions([]);   // close dropdown
-
-                onSearch(name);       // 🔥 THIS is the missing part
-              }}
-            >
+            <li key={movie.id} onClick={() => handleSelect(movie)}>
               {movie.title || movie.name}
             </li>
           ))}
