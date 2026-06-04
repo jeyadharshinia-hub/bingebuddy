@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { discoverMovies, getGenres, getRegions } from "../services/api";
 import MovieCard from "../components/MovieCard";
+import LoginModal from "../components/LoginModal";
+import { useWatchlist } from "../hooks/useWatchlist";
+
 
 const POPULAR_REGION_CODES = ["US", "IN", "KR", "JP", "CN", "TH", "PH", "GB", "FR"];
 
@@ -14,14 +17,17 @@ const DEFAULT_FILTERS = {
 
 export default function DiscoverPage() {
   const navigate = useNavigate();
+  const { toggleWatchlist, isInWatchlist } = useWatchlist();
+
+
   const [movies, setMovies] = useState([]);
   const [genres, setGenres] = useState([]);
   const [regions, setRegions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [showLogin, setShowLogin] = useState(false);
 
-  // filters declared BEFORE prevFiltersRef so it's initialized first
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const prevFiltersRef = useRef(filters);
 
@@ -160,6 +166,10 @@ export default function DiscoverPage() {
               key={movie.id}
               item={{ ...movie, media_type: filters.type }}
               onSelect={(i) => navigate(`/${filters.type}/${i.id}`)}
+              isInWatchlist={isInWatchlist(movie.id)}
+              onWatchlist={(item) => {
+                if (!toggleWatchlist(item)) setShowLogin(true);
+              }}
             />
           ))}
         </div>
@@ -178,6 +188,8 @@ export default function DiscoverPage() {
 
         {loading && page === 1 && <p className="loading">Loading...</p>}
       </div>
+
+      {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
     </div>
   );
 }

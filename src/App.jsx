@@ -111,7 +111,7 @@ function HomePage({ filter, onNeedLogin }) {
         <>
           <div className="results-header">
             <h2>🔎 Results for "{urlQuery}"</h2>
-            <button className="back-btn" onClick={() => navigate("/")}>← Home</button>
+            <button className="back-btn" onClick={() => navigate(-1)}>← Back</button>
           </div>
           {loading ? (
             <p className="loading">Searching...</p>
@@ -234,7 +234,7 @@ function DetailPage({ type, onNeedLogin }) {
 
   return (
     <div className="details-section">
-      <button className="back-btn" onClick={() => navigate("/")}>← Home</button>
+      <button className="back-btn" onClick={() => navigate(-1)}>← Back</button>
 
       {item.backdrop_path && (
         <div
