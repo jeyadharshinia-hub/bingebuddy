@@ -14,7 +14,7 @@ import { useWatchlist } from "./hooks/useWatchlist";
 import useSearchHistory from "./hooks/useSearchHistory";
 import Discover from "./pages/Discover";
 
-/* ─── Root layout that shares filter state ─────────────── */
+/* ─── Root layout ───────────────────────────────────────── */
 function AppLayout() {
   const [filter, setFilter] = useState({});
   const [showLogin, setShowLogin] = useState(false);
@@ -169,14 +169,12 @@ function DetailPage({ type, onNeedLogin }) {
   const [showTrailer, setShowTrailer] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toggleWatchlist, isInWatchlist } = useWatchlist();
-
   const prevIdRef = useRef(null);
 
   useEffect(() => {
     window.scrollTo(0, 0);
     let active = true;
 
-    // Defer setLoading(true) so it never fires synchronously in the effect body
     const resetTimer = prevIdRef.current !== null && prevIdRef.current !== id
       ? setTimeout(() => { if (active) setLoading(true); }, 0)
       : null;
@@ -189,32 +187,12 @@ function DetailPage({ type, onNeedLogin }) {
     ])
       .then(([details, castData, trailer]) => {
         if (!active) return;
-
-        const formattedItem = type === "tv"
-          ? {
-              ...details,
-              seasons: details.number_of_seasons ?? 0,
-              episodes: details.number_of_episodes ?? 0,
-              status: details.status,
-              airStatus: details.status,
-              firstAir: details.first_air_date,
-              lastAir: details.last_air_date,
-              nextEpisode: details.next_episode_to_air || null,
-              inProduction: details.in_production,
-              lastEpisode: details.last_episode_to_air || null,
-            }
-          : details;
-
-        setItem(formattedItem);
+        setItem(details);
         setCast(castData.slice(0, 10));
         setTrailerKey(trailer);
       })
-      .catch((err) => {
-        if (active) console.error(err);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+      .catch((err) => { if (active) console.error(err); })
+      .finally(() => { if (active) setLoading(false); });
 
     return () => {
       active = false;
@@ -232,6 +210,10 @@ function DetailPage({ type, onNeedLogin }) {
 
   const inWatchlist = isInWatchlist(item.id);
 
+  // Helpers
+  const fmt = (n) => n ? `$${Number(n).toLocaleString()}` : null;
+  const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : null;
+
   return (
     <div className="details-section">
       <button className="back-btn" onClick={() => navigate(-1)}>← Back</button>
@@ -243,6 +225,7 @@ function DetailPage({ type, onNeedLogin }) {
         />
       )}
 
+      {/* ── Main Info ── */}
       <div className="details-content">
         <img
           src={item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : "https://via.placeholder.com/300x450"}
@@ -250,27 +233,31 @@ function DetailPage({ type, onNeedLogin }) {
           className="detail-poster"
         />
         <div className="detail-info">
+
+          {item.tagline && <p className="detail-tagline">"{item.tagline}"</p>}
           <h2>{item.title || item.name}</h2>
+
           <div className="detail-meta">
-            <span>⭐ {item.vote_average?.toFixed(1)}</span>
+            <span>⭐ {item.vote_average?.toFixed(1)} <span className="meta-sub">({item.vote_count?.toLocaleString()} votes)</span></span>
             <span>📅 {item.release_date || item.first_air_date}</span>
             {item.runtime && <span>⏱ {item.runtime} min</span>}
+            {item.original_language && <span>🗣 {item.original_language?.toUpperCase()}</span>}
             {item.status && (
               <span className={`status-badge ${item.status === "Returning Series" ? "ongoing" : ""}`}>
                 {item.status}
               </span>
             )}
           </div>
-          <p className="genre-tags">
+
+          <div className="genre-tags">
             {item.genres?.map((g) => <span key={g.id} className="genre-tag">{g.name}</span>)}
-          </p>
+          </div>
+
           <p className="detail-overview">{item.overview}</p>
 
           <div className="detail-actions">
             {trailerKey && (
-              <button className="trailer-btn" onClick={() => setShowTrailer(true)}>
-                ▶ Watch Trailer
-              </button>
+              <button className="trailer-btn" onClick={() => setShowTrailer(true)}>▶ Watch Trailer</button>
             )}
             <button
               className={`watchlist-btn ${inWatchlist ? "in-watchlist" : ""}`}
@@ -282,21 +269,158 @@ function DetailPage({ type, onNeedLogin }) {
         </div>
       </div>
 
+      {/* ── Extra Details Table ── */}
+      <div className="detail-extra">
+
+        {/* MOVIE specific */}
+        {type === "movie" && (
+          <div className="detail-facts">
+            <h3>🎬 Movie Details</h3>
+            <div className="facts-grid">
+              {item.original_title && item.original_title !== item.title && (
+                <div className="fact-item"><span className="fact-label">Original Title</span><span>{item.original_title}</span></div>
+              )}
+              {fmtDate(item.release_date) && (
+                <div className="fact-item"><span className="fact-label">Release Date</span><span>{fmtDate(item.release_date)}</span></div>
+              )}
+              {item.runtime > 0 && (
+                <div className="fact-item"><span className="fact-label">Runtime</span><span>{item.runtime} min ({Math.floor(item.runtime / 60)}h {item.runtime % 60}m)</span></div>
+              )}
+              {fmt(item.budget) && (
+                <div className="fact-item"><span className="fact-label">Budget</span><span>{fmt(item.budget)}</span></div>
+              )}
+              {fmt(item.revenue) && (
+                <div className="fact-item"><span className="fact-label">Revenue</span><span>{fmt(item.revenue)}</span></div>
+              )}
+              {item.popularity && (
+                <div className="fact-item"><span className="fact-label">Popularity</span><span>🔥 {item.popularity.toFixed(1)}</span></div>
+              )}
+              {item.spoken_languages?.length > 0 && (
+                <div className="fact-item"><span className="fact-label">Languages</span><span>{item.spoken_languages.map(l => l.english_name).join(", ")}</span></div>
+              )}
+              {item.production_countries?.length > 0 && (
+                <div className="fact-item"><span className="fact-label">Countries</span><span>{item.production_countries.map(c => c.name).join(", ")}</span></div>
+              )}
+              {item.production_companies?.length > 0 && (
+                <div className="fact-item"><span className="fact-label">Studios</span><span>{item.production_companies.map(c => c.name).join(", ")}</span></div>
+              )}
+              {item.imdb_id && (
+                <div className="fact-item">
+                  <span className="fact-label">IMDb</span>
+                  <a href={`https://www.imdb.com/title/${item.imdb_id}`} target="_blank" rel="noreferrer" className="imdb-link">
+                    View on IMDb
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TV specific */}
+        {type === "tv" && (
+          <div className="detail-facts">
+            <h3>📺 Series Details</h3>
+            <div className="facts-grid">
+              {item.original_name && item.original_name !== item.name && (
+                <div className="fact-item"><span className="fact-label">Original Name</span><span>{item.original_name}</span></div>
+              )}
+              {item.first_air_date && (
+                <div className="fact-item"><span className="fact-label">First Aired</span><span>{fmtDate(item.first_air_date)}</span></div>
+              )}
+              {item.last_air_date && (
+                <div className="fact-item"><span className="fact-label">Last Aired</span><span>{fmtDate(item.last_air_date)}</span></div>
+              )}
+              {item.number_of_seasons > 0 && (
+                <div className="fact-item"><span className="fact-label">Seasons</span><span>{item.number_of_seasons}</span></div>
+              )}
+              {item.number_of_episodes > 0 && (
+                <div className="fact-item"><span className="fact-label">Episodes</span><span>{item.number_of_episodes}</span></div>
+              )}
+              {item.episode_run_time?.length > 0 && (
+                <div className="fact-item"><span className="fact-label">Episode Runtime</span><span>{item.episode_run_time[0]} min</span></div>
+              )}
+              <div className="fact-item">
+                <span className="fact-label">In Production</span>
+                <span>{item.in_production ? "✅ Yes" : "❌ No"}</span>
+              </div>
+              {item.created_by?.length > 0 && (
+                <div className="fact-item"><span className="fact-label">Created By</span><span>{item.created_by.map(c => c.name).join(", ")}</span></div>
+              )}
+              {item.networks?.length > 0 && (
+                <div className="fact-item"><span className="fact-label">Networks</span><span>{item.networks.map(n => n.name).join(", ")}</span></div>
+              )}
+              {item.origin_country?.length > 0 && (
+                <div className="fact-item"><span className="fact-label">Origin Country</span><span>{item.origin_country.join(", ")}</span></div>
+              )}
+              {item.spoken_languages?.length > 0 && (
+                <div className="fact-item"><span className="fact-label">Languages</span><span>{item.spoken_languages.map(l => l.english_name).join(", ")}</span></div>
+              )}
+              {item.production_companies?.length > 0 && (
+                <div className="fact-item"><span className="fact-label">Studios</span><span>{item.production_companies.map(c => c.name).join(", ")}</span></div>
+              )}
+              {item.popularity && (
+                <div className="fact-item"><span className="fact-label">Popularity</span><span>🔥 {item.popularity.toFixed(1)}</span></div>
+              )}
+            </div>
+
+            {/* Next Episode */}
+            {item.next_episode_to_air && (
+              <div className="episode-card next">
+                <h4>🔜 Next Episode</h4>
+                <p><strong>S{item.next_episode_to_air.season_number} E{item.next_episode_to_air.episode_number}</strong> — {item.next_episode_to_air.name}</p>
+                <small>📅 {fmtDate(item.next_episode_to_air.air_date)}</small>
+                {item.next_episode_to_air.overview && <p className="ep-overview">{item.next_episode_to_air.overview}</p>}
+              </div>
+            )}
+
+            {/* Last Episode */}
+            {item.last_episode_to_air && (
+              <div className="episode-card last">
+                <h4>✅ Last Episode</h4>
+                <p><strong>S{item.last_episode_to_air.season_number} E{item.last_episode_to_air.episode_number}</strong> — {item.last_episode_to_air.name}</p>
+                <small>📅 {fmtDate(item.last_episode_to_air.air_date)} • ⭐ {item.last_episode_to_air.vote_average?.toFixed(1)}</small>
+                {item.last_episode_to_air.overview && <p className="ep-overview">{item.last_episode_to_air.overview}</p>}
+              </div>
+            )}
+
+            {/* Seasons list */}
+            {item.seasons?.length > 0 && (
+              <div className="seasons-list">
+                <h4>📋 Seasons</h4>
+                <div className="seasons-grid">
+                  {item.seasons.filter(s => s.season_number > 0).map((s) => (
+                    <div key={s.id} className="season-card">
+                      <img
+                        src={s.poster_path ? `https://image.tmdb.org/t/p/w200${s.poster_path}` : "https://via.placeholder.com/100x150?text=?"}
+                        alt={s.name}
+                      />
+                      <div>
+                        <p>{s.name}</p>
+                        <small>{s.episode_count} episodes</small>
+                        {s.air_date && <small> • {s.air_date.slice(0, 4)}</small>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Trailer ── */}
       {trailerKey && (
         <div className="trailer-section">
           <h3>🎬 Trailer</h3>
           <div className="trailer-embed">
-            <iframe
-              src={`https://www.youtube.com/embed/${trailerKey}?rel=0`}
-              title="Trailer"
-              allowFullScreen
-            />
+            <iframe src={`https://www.youtube.com/embed/${trailerKey}?rel=0`} title="Trailer" allowFullScreen />
           </div>
         </div>
       )}
 
+      {/* ── Cast ── */}
       <div className="cast-section">
-        <h3>🎭 Cast — tap to view profile</h3>
+        <h3>🎭 Cast</h3>
         <div className="cast-grid">
           {cast.map((actor) => (
             <CastCard key={actor.id} actor={actor} />
@@ -304,8 +428,10 @@ function DetailPage({ type, onNeedLogin }) {
         </div>
       </div>
 
+      {/* ── Comments ── */}
       <CommentBox mediaId={`${type}-${id}`} onNeedLogin={onNeedLogin} />
 
+      {/* ── Trailer Modal ── */}
       {showTrailer && trailerKey && (
         <div className="modal-overlay" onClick={() => setShowTrailer(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>

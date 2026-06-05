@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { WatchlistContext } from "./WatchlistContext";
 import { useAuth } from "../hooks/useAuth";
-
+import { useActivity } from "../hooks/useActivity";
 export function WatchlistProvider({ children }) {
   const { user } = useAuth();
-
+  const { addActivity } = useActivity();
   const [watchlist, setWatchlist] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("watchlist")) || [];
@@ -17,12 +17,21 @@ export function WatchlistProvider({ children }) {
     if (!user) return false;
 
     const exists = watchlist.find((i) => i.id === item.id);
+
     const updated = exists
       ? watchlist.filter((i) => i.id !== item.id)
       : [...watchlist, item];
 
     setWatchlist(updated);
     localStorage.setItem("watchlist", JSON.stringify(updated));
+
+    if (!exists) {
+      addActivity({
+        type: "watchlist",
+        text: `❤️ Added ${item.title || item.name} to Watchlist`,
+      });
+    }
+
     return true;
   };
 

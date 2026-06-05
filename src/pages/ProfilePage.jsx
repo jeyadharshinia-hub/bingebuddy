@@ -2,6 +2,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useWatchlist } from "../hooks/useWatchlist";
 import useSearchHistory from "../hooks/useSearchHistory";
 import { useNavigate } from "react-router-dom";
+import { useActivity } from "../hooks/useActivity";
 
 export default function ProfilePage({ onNeedLogin }) {
   const { user, logout } = useAuth();
@@ -9,6 +10,7 @@ export default function ProfilePage({ onNeedLogin }) {
   const { history, clearHistory } = useSearchHistory();
   const navigate = useNavigate();
 
+  const { activities } = useActivity();
   if (!user) {
     return (
       <div className="profile-page empty">
@@ -75,6 +77,32 @@ export default function ProfilePage({ onNeedLogin }) {
             </button>
           ))}
         </div>
+      </section>
+      <section>
+        <div className="section-header">
+          <h2>📈 Recent Activity</h2>
+        </div>
+
+        {activities.length === 0 ? (
+          <p className="no-data">No activity yet.</p>
+        ) : (
+          <div className="activity-list">
+            {activities.slice(0, 20).map((activity) => (
+              <div
+                key={activity.id}
+                className="activity-card"
+              >
+                <p>{activity.text}</p>
+
+                <small>
+                  {new Date(
+                    activity.createdAt
+                  ).toLocaleString()}
+                </small>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

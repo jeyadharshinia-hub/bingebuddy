@@ -4,25 +4,19 @@ import { useAuth } from "../hooks/useAuth";
 import useSearchHistory from "../hooks/useSearchHistory";
 import useDebounce from "../hooks/useDebounce";
 import LoginModal from "./LoginModal";
-import { searchMovies, getGenres } from "../services/api";
+import { searchMovies } from "../services/api";
 
-export default function Navbar({ onFilterChange, currentFilter }) {
+export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { history, addToHistory, clearHistory, removeItem } = useSearchHistory();
 
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
-  const [showFilter, setShowFilter] = useState(false);
   const [navQuery, setNavQuery] = useState("");
   const [navSuggestions, setNavSuggestions] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
-  const [genres, setGenres] = useState([]);
   const debouncedNav = useDebounce(navQuery, 400);
-
-  useEffect(() => {
-    getGenres("movie").then(setGenres).catch(() => {});
-  }, []);
 
   useEffect(() => {
     if (!debouncedNav.trim()) {
@@ -43,7 +37,6 @@ export default function Navbar({ onFilterChange, currentFilter }) {
         setShowHistory(false);
       }
       if (!e.target.closest(".profile-section")) setShowProfile(false);
-      if (!e.target.closest(".filter-wrapper")) setShowFilter(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -74,30 +67,6 @@ export default function Navbar({ onFilterChange, currentFilter }) {
     setShowHistory(false);
   };
 
-  const languages = [
-    { code: "en", name: "English" },
-    { code: "ko", name: "Korean" },
-    { code: "ja", name: "Japanese" },
-    { code: "zh", name: "Chinese" },
-    { code: "ta", name: "Tamil" },
-    { code: "hi", name: "Hindi" },
-    { code: "th", name: "Thai" },
-    { code: "tl", name: "Filipino" },
-  ];
-
-  const regions = [
-    { code: "US", name: "USA" },
-    { code: "IN", name: "India" },
-    { code: "KR", name: "Korea" },
-    { code: "JP", name: "Japan" },
-    { code: "CN", name: "China" },
-    { code: "TH", name: "Thailand" },
-    { code: "PH", name: "Philippines" },
-    { code: "GB", name: "UK" },
-  ];
-
-  const activeCount = Object.values(currentFilter || {}).filter(Boolean).length;
-
   return (
     <>
       <nav className="navbar">
@@ -108,11 +77,11 @@ export default function Navbar({ onFilterChange, currentFilter }) {
           <Link to="/?section=trending">Trending</Link>
           <Link to="/?section=movies">Movies</Link>
           <Link to="/?section=series">Series</Link>
-          <Link to="/watchlist">❤️ Watchlist</Link>
           <Link to="/discover">🎯 Discover</Link>
+          <Link to="/watchlist">❤️ Watchlist</Link>
         </div>
 
-        {/* Navbar Search */}
+        {/* Search */}
         <div className="nav-search-wrapper">
           <form onSubmit={handleNavSearch} className="nav-search-form">
             <input
@@ -155,116 +124,6 @@ export default function Navbar({ onFilterChange, currentFilter }) {
                   <button onClick={() => removeItem(q)}>✕</button>
                 </div>
               ))}
-            </div>
-          )}
-        </div>
-
-        {/* Filter — now actually toggles open */}
-        <div className="filter-wrapper">
-          <button
-            className="filter-toggle-btn"
-            onClick={() => setShowFilter((prev) => !prev)}
-          >
-            ⚙️ Filter {activeCount > 0 && <span className="filter-badge">{activeCount}</span>}
-          </button>
-
-          {showFilter && (
-            <div className="filter-panel">
-              <h4>Filter Results</h4>
-
-              <label>Type</label>
-              <div className="filter-chips">
-                {["all", "movie", "tv"].map((t) => (
-                  <button
-                    key={t}
-                    className={`chip ${(currentFilter?.type || "all") === t ? "active" : ""}`}
-                    onClick={() => onFilterChange?.({ ...currentFilter, type: t })}
-                  >
-                    {t === "all" ? "All" : t === "tv" ? "TV Series" : "Movies"}
-                  </button>
-                ))}
-              </div>
-
-              <label>🌍 Language</label>
-              <div className="filter-chips">
-                {languages.map((lang) => (
-                  <button
-                    key={lang.code}
-                    className={`chip ${currentFilter?.language === lang.code ? "active" : ""}`}
-                    onClick={() =>
-                      onFilterChange?.({
-                        ...currentFilter,
-                        language: currentFilter?.language === lang.code ? "" : lang.code,
-                      })
-                    }
-                  >
-                    {lang.name}
-                  </button>
-                ))}
-              </div>
-
-              <label>🌎 Region</label>
-              <div className="filter-chips">
-                {regions.map((region) => (
-                  <button
-                    key={region.code}
-                    className={`chip ${currentFilter?.region === region.code ? "active" : ""}`}
-                    onClick={() =>
-                      onFilterChange?.({
-                        ...currentFilter,
-                        region: currentFilter?.region === region.code ? "" : region.code,
-                      })
-                    }
-                  >
-                    {region.name}
-                  </button>
-                ))}
-              </div>
-
-              <label>🎭 Genre</label>
-              <div className="filter-chips genre-chips">
-                {genres.map((g) => (
-                  <button
-                    key={g.id}
-                    className={`chip ${currentFilter?.genre === g.id ? "active" : ""}`}
-                    onClick={() =>
-                      onFilterChange?.({
-                        ...currentFilter,
-                        genre: currentFilter?.genre === g.id ? null : g.id,
-                      })
-                    }
-                  >
-                    {g.name}
-                  </button>
-                ))}
-              </div>
-
-              <div className="filter-toggles">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={!!currentFilter?.topRated}
-                    onChange={(e) =>
-                      onFilterChange?.({ ...currentFilter, topRated: e.target.checked })
-                    }
-                  />
-                  ⭐ Top Rated (7+)
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={!!currentFilter?.ongoing}
-                    onChange={(e) =>
-                      onFilterChange?.({ ...currentFilter, ongoing: e.target.checked })
-                    }
-                  />
-                  📺 Ongoing Series
-                </label>
-              </div>
-
-              <button className="clear-filter-btn" onClick={() => onFilterChange?.({})}>
-                Clear All Filters
-              </button>
             </div>
           )}
         </div>
