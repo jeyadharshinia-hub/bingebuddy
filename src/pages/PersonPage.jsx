@@ -2,25 +2,12 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getPersonDetails } from "../services/api";
 
-
-
 export default function PersonPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [person, setPerson] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showFullBio, setShowFullBio] = useState(false);
-
-  const [liked, setLiked] = useState(false);
-
-  const [likeCount, setLikeCount] = useState(() => {
-    const likes = JSON.parse(localStorage.getItem("castLikes")) || {};
-    return likes[id]?.count || 0;
-  });
-
-
-
-
 
   useEffect(() => {
     let active = true;
@@ -76,29 +63,7 @@ export default function PersonPage() {
         />
         <div className="person-info">
           <h1>{person.name}</h1>
-          <button
-            className={`cast-like-btn ${liked ? "liked" : ""}`}
-            onClick={() => {
-              const likes = JSON.parse(localStorage.getItem("castLikes")) || {};
 
-              const newLiked = !liked;
-              const newCount = newLiked
-                ? likeCount + 1
-                : Math.max(0, likeCount - 1);
-
-              likes[id] = {
-                count: newCount,
-                liked: newLiked,
-              };
-
-              localStorage.setItem("castLikes", JSON.stringify(likes));
-
-              setLiked(newLiked);
-              setLikeCount(newCount);
-            }}
-          >
-            {liked ? "❤️ Liked" : "🤍 Like"} ({likeCount})
-          </button>
           <div className="person-meta">
             {person.known_for_department && (
               <span>🎭 {person.known_for_department}</span>
@@ -218,7 +183,6 @@ export default function PersonPage() {
                 </small>
               </div>
             </div>
-
           ))}
         </div>
       </div>

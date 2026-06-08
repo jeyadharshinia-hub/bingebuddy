@@ -1,11 +1,6 @@
 import { useNavigate } from "react-router-dom";
 
-export default function CastCard({
-  actor
-}) {
-
-
-
+export default function CastCard({ actor }) {
   const navigate = useNavigate();
 
   return (
@@ -21,8 +16,6 @@ export default function CastCard({
       />
       <h4>{actor.name}</h4>
       <p>{actor.character}</p>
-
-      
     </div>
   );
 }

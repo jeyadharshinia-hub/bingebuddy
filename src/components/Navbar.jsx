@@ -12,10 +12,10 @@ export default function Navbar() {
   const { history, addToHistory, clearHistory, removeItem } = useSearchHistory();
 
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
-  const [navQuery, setNavQuery] = useState("");
+  const [showProfile,    setShowProfile]    = useState(false);
+  const [navQuery,       setNavQuery]       = useState("");
   const [navSuggestions, setNavSuggestions] = useState([]);
-  const [showHistory, setShowHistory] = useState(false);
+  const [showHistory,    setShowHistory]    = useState(false);
   const debouncedNav = useDebounce(navQuery, 400);
 
   useEffect(() => {
@@ -128,45 +128,65 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Profile */}
-        <div className="profile-section" onClick={() => setShowProfile(!showProfile)}>
-          <img
-            src={user?.photoURL || "https://cdn-icons-png.flaticon.com/512/149/149071.png"}
-            alt="profile"
-            className="profile-pic"
-          />
-          {showProfile && (
+        {/* Profile — margin-left: auto pushes it to the far right */}
+        <div
+          className="profile-section"
+          style={{ marginLeft: "auto" }}
+          onClick={() => setShowProfile(!showProfile)}
+        >
+          {user ? (
+            <img
+              src={user.photoURL || "https://cdn-icons-png.flaticon.com/512/149/149071.png"}
+              alt="profile"
+              className="profile-pic"
+            />
+          ) : (
+            <button
+              className="nav-signin-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowLoginModal(true);
+              }}
+            >
+              Sign In
+            </button>
+          )}
+
+          {showProfile && user && (
             <div className="profile-dropdown">
-              {user ? (
-                <>
-                  <div className="profile-info">
-                    <img src={user.photoURL} alt="" />
-                    <div>
-                      <strong>{user.displayName}</strong>
-                      <small>{user.email}</small>
-                    </div>
-                  </div>
-                  <Link to="/profile" className="profile-link">👤 My Profile</Link>
-                  <Link to="/watchlist" className="profile-link">❤️ Watchlist</Link>
-                  <button
-                    className="logout-btn"
-                    onClick={(e) => { e.stopPropagation(); logout(); }}
-                  >
-                    🚪 Sign Out
-                  </button>
-                </>
-              ) : (
-                <button
-                  className="signin-prompt"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowProfile(false);
-                    setShowLoginModal(true);
-                  }}
-                >
-                  Sign In / Register
-                </button>
-              )}
+              <div className="profile-info">
+                <img
+                  src={user.photoURL || "https://cdn-icons-png.flaticon.com/512/149/149071.png"}
+                  alt=""
+                />
+                <div>
+                  <strong>{user.displayName}</strong>
+                  <small>{user.email}</small>
+                </div>
+              </div>
+              <Link to="/profile" className="profile-link">👤 My Profile</Link>
+              <Link to="/watchlist" className="profile-link">❤️ Watchlist</Link>
+              <button
+                className="logout-btn"
+                onClick={(e) => { e.stopPropagation(); logout(); }}
+              >
+                🚪 Sign Out
+              </button>
+            </div>
+          )}
+
+          {showProfile && !user && (
+            <div className="profile-dropdown">
+              <button
+                className="signin-prompt"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowProfile(false);
+                  setShowLoginModal(true);
+                }}
+              >
+                Sign In / Register
+              </button>
             </div>
           )}
         </div>

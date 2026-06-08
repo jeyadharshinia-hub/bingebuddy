@@ -1,44 +1,69 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { WatchlistContext } from "./WatchlistContext";
 import { useAuth } from "../hooks/useAuth";
-import { useActivity } from "../hooks/useActivity";
+import apiClient from "../services/apiClient";
+
 export function WatchlistProvider({ children }) {
   const { user } = useAuth();
-  const { addActivity } = useActivity();
-  const [watchlist, setWatchlist] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("watchlist")) || [];
-    } catch {
-      return [];
-    }
-  });
+  const [watchlist, setWatchlist] = useState([]);
+  const [loading,   setLoading]   = useState(false);
 
-  const toggleWatchlist = (item) => {
+  const loadWatchlist = useCallback(() => {
+    if (!user) {
+      setWatchlist([]);
+      return;
+    }
+    setLoading(true);
+    apiClient
+      .get("/watchlist")
+      .then((res) => setWatchlist(res.data))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [user]);
+
+  // Defer the load so setState never fires synchronously inside the effect body
+  useEffect(() => {
+    const timer = setTimeout(loadWatchlist, 0);
+    return () => clearTimeout(timer);
+  }, [loadWatchlist]);
+
+  const toggleWatchlist = async (item) => {
     if (!user) return false;
 
-    const exists = watchlist.find((i) => i.id === item.id);
+    try {
+      const payload = {
+        tmdbId:     item.id,
+        mediaType:  item.media_type === "tv" ? "tv" : "movie",
+        title:      item.title || item.name,
+        posterPath: item.poster_path,
+      };
 
-    const updated = exists
-      ? watchlist.filter((i) => i.id !== item.id)
-      : [...watchlist, item];
+      const res = await apiClient.post("/watchlist", payload);
 
-    setWatchlist(updated);
-    localStorage.setItem("watchlist", JSON.stringify(updated));
+      const isRemoved =
+        res.data?.action === "removed" ||
+        (typeof res.data === "string" && res.data.includes("removed"));
 
-    if (!exists) {
-      addActivity({
-        type: "watchlist",
-        text: `❤️ Added ${item.title || item.name} to Watchlist`,
-      });
+      if (isRemoved) {
+        setWatchlist((prev) => prev.filter((i) => i.tmdbId !== item.id));
+      } else {
+        setWatchlist((prev) => [...prev, res.data]);
+      }
+
+      return true;
+    } catch (err) {
+      console.error("Watchlist toggle failed:", err);
+      return false;
     }
-
-    return true;
   };
 
-  const isInWatchlist = (id) => watchlist.some((i) => i.id === id);
+  const isInWatchlist = (id) =>
+    watchlist.some((i) => i.tmdbId === id || i.id === id);
 
   return (
-    <WatchlistContext.Provider value={{ watchlist, toggleWatchlist, isInWatchlist }}>
+    <WatchlistContext.Provider
+      value={{ watchlist, toggleWatchlist, isInWatchlist, loading }}
+    >
       {children}
     </WatchlistContext.Provider>
   );

@@ -8,29 +8,32 @@ import CommentBox from "./components/CommentBox";
 import LoginModal from "./components/LoginModal";
 import PersonPage from "./pages/PersonPage";
 import ProfilePage from "./pages/ProfilePage";
+import Discover from "./pages/Discover";
 import { searchMovies, getMovieDetails, getMovieCast, getTrending, getVideos } from "./services/api";
 import { useAuth } from "./hooks/useAuth";
 import { useWatchlist } from "./hooks/useWatchlist";
 import useSearchHistory from "./hooks/useSearchHistory";
-import Discover from "./pages/Discover";
 
 /* ─── Root layout ───────────────────────────────────────── */
 function AppLayout() {
-  const [filter, setFilter] = useState({});
+  const [filter,    setFilter]    = useState({});
   const [showLogin, setShowLogin] = useState(false);
+
+  const openLogin = () => setShowLogin(true);
 
   return (
     <>
       <Navbar onFilterChange={setFilter} currentFilter={filter} />
       <div className="container">
         <Routes>
-          <Route path="/" element={<HomePage filter={filter} onNeedLogin={() => setShowLogin(true)} />} />
-          <Route path="/movie/:id" element={<DetailPage type="movie" onNeedLogin={() => setShowLogin(true)} />} />
-          <Route path="/tv/:id" element={<DetailPage type="tv" onNeedLogin={() => setShowLogin(true)} />} />
-          <Route path="/person/:id" element={<PersonPage />} />
-          <Route path="/watchlist" element={<WatchlistPage onNeedLogin={() => setShowLogin(true)} />} />
-          <Route path="/profile" element={<ProfilePage onNeedLogin={() => setShowLogin(true)} />} />
-          <Route path="/discover" element={<Discover />} />
+          <Route path="/"          element={<HomePage   filter={filter} onNeedLogin={openLogin} />} />
+          <Route path="/movie/:id" element={<DetailPage type="movie"    onNeedLogin={openLogin} />} />
+          <Route path="/tv/:id"    element={<DetailPage type="tv"       onNeedLogin={openLogin} />} />
+          <Route path="/person/:id" element={<PersonPage               onNeedLogin={openLogin} />} />
+          <Route path="/watchlist" element={<WatchlistPage             onNeedLogin={openLogin} />} />
+          <Route path="/profile"   element={<ProfilePage              onNeedLogin={openLogin} />} />
+          {/* onNeedLogin MUST be passed — Discover has watchlist buttons */}
+          <Route path="/discover"  element={<Discover                 onNeedLogin={openLogin} />} />
         </Routes>
       </div>
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
@@ -42,15 +45,14 @@ function AppLayout() {
 function HomePage({ filter, onNeedLogin }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const urlQuery = searchParams.get("q") || "";
+  const urlQuery   = searchParams.get("q")       || "";
   const urlSection = searchParams.get("section") || "";
 
   const [trending, setTrending] = useState([]);
-  const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [results,  setResults]  = useState([]);
+  const [loading,  setLoading]  = useState(false);
 
   const hasSearched = Boolean(urlQuery);
-
   useSearchHistory();
   const { toggleWatchlist, isInWatchlist } = useWatchlist();
 
@@ -62,43 +64,47 @@ function HomePage({ filter, onNeedLogin }) {
     if (!urlQuery) return;
     let active = true;
 
+    const loadTimer = setTimeout(() => { if (active) setLoading(true); }, 0);
+
     searchMovies(urlQuery)
       .then((data) => {
         if (!active) return;
         let filtered = data
           .map((i) => ({ ...i, media_type: i.media_type || "movie" }))
           .filter((i) => i.media_type === "movie" || i.media_type === "tv");
+
         if (filter.type && filter.type !== "all") filtered = filtered.filter((i) => i.media_type === filter.type);
         if (filter.language) filtered = filtered.filter((i) => i.original_language === filter.language);
-        if (filter.genre) filtered = filtered.filter((i) => i.genre_ids?.includes(filter.genre));
+        if (filter.genre)    filtered = filtered.filter((i) => i.genre_ids?.includes(filter.genre));
         if (filter.topRated) filtered = filtered.filter((i) => (i.vote_average || 0) >= 7);
-        if (filter.ongoing) filtered = filtered.filter((i) => i.media_type === "tv" && !i.last_air_date);
+        if (filter.ongoing)  filtered = filtered.filter((i) => i.media_type === "tv" && !i.last_air_date);
+
         setResults(filtered);
         setLoading(false);
       })
-      .catch((err) => {
-        if (active) { console.error(err); setLoading(false); }
-      });
-    return () => { active = false; };
+      .catch((err) => { if (active) { console.error(err); setLoading(false); } });
+
+    return () => { active = false; clearTimeout(loadTimer); };
   }, [urlQuery, filter]);
 
   const handleSelect = (item) => {
-    const type = item.media_type === "tv" ? "tv" : "movie";
-    navigate(`/${type}/${item.id}`);
+    navigate(`/${item.media_type === "tv" ? "tv" : "movie"}/${item.id}`);
   };
 
-  const handleWatchlist = (item) => {
-    if (!toggleWatchlist(item)) onNeedLogin();
+  // toggleWatchlist is async — must await to get the boolean back
+  const handleWatchlist = async (item) => {
+    const success = await toggleWatchlist(item);
+    if (!success) onNeedLogin();
   };
 
   const heroItems = trending.slice(0, 8);
+
   let displayTrending = trending;
   if (urlSection === "movies") displayTrending = trending.filter((i) => i.media_type === "movie");
   if (urlSection === "series") displayTrending = trending.filter((i) => i.media_type === "tv");
-
   if (filter.type && filter.type !== "all") displayTrending = displayTrending.filter((i) => i.media_type === filter.type);
   if (filter.language) displayTrending = displayTrending.filter((i) => i.original_language === filter.language);
-  if (filter.genre) displayTrending = displayTrending.filter((i) => i.genre_ids?.includes(filter.genre));
+  if (filter.genre)    displayTrending = displayTrending.filter((i) => i.genre_ids?.includes(filter.genre));
   if (filter.topRated) displayTrending = displayTrending.filter((i) => (i.vote_average || 0) >= 7);
 
   return (
@@ -136,10 +142,10 @@ function HomePage({ filter, onNeedLogin }) {
       {!hasSearched && (
         <>
           <div className="section-nav">
-            <Link to="/" className={!urlSection ? "active" : ""}>All</Link>
-            <Link to="/?section=movies" className={urlSection === "movies" ? "active" : ""}>Movies</Link>
-            <Link to="/?section=series" className={urlSection === "series" ? "active" : ""}>Series</Link>
-            <Link to="/?section=trending" className={urlSection === "trending" ? "active" : ""}>Trending</Link>
+            <Link to="/"                  className={!urlSection                 ? "active" : ""}>All</Link>
+            <Link to="/?section=movies"   className={urlSection === "movies"     ? "active" : ""}>Movies</Link>
+            <Link to="/?section=series"   className={urlSection === "series"     ? "active" : ""}>Series</Link>
+            <Link to="/?section=trending" className={urlSection === "trending"   ? "active" : ""}>Trending</Link>
           </div>
           <h2>🔥 {urlSection === "movies" ? "Movies" : urlSection === "series" ? "TV Series" : "Trending Today"}</h2>
           <div className="movies-grid">
@@ -163,11 +169,11 @@ function HomePage({ filter, onNeedLogin }) {
 function DetailPage({ type, onNeedLogin }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [item, setItem] = useState(null);
-  const [cast, setCast] = useState([]);
-  const [trailerKey, setTrailerKey] = useState(null);
+  const [item,        setItem]        = useState(null);
+  const [cast,        setCast]        = useState([]);
+  const [trailerKey,  setTrailerKey]  = useState(null);
   const [showTrailer, setShowTrailer] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading,     setLoading]     = useState(true);
   const { toggleWatchlist, isInWatchlist } = useWatchlist();
   const prevIdRef = useRef(null);
 
@@ -175,9 +181,10 @@ function DetailPage({ type, onNeedLogin }) {
     window.scrollTo(0, 0);
     let active = true;
 
-    const resetTimer = prevIdRef.current !== null && prevIdRef.current !== id
-      ? setTimeout(() => { if (active) setLoading(true); }, 0)
-      : null;
+    const resetTimer =
+      prevIdRef.current !== null && prevIdRef.current !== id
+        ? setTimeout(() => { if (active) setLoading(true); }, 0)
+        : null;
     prevIdRef.current = id;
 
     Promise.all([
@@ -200,19 +207,22 @@ function DetailPage({ type, onNeedLogin }) {
     };
   }, [id, type]);
 
-  const handleWatchlist = () => {
+  // toggleWatchlist is async — must await to get the boolean back
+  const handleWatchlist = async () => {
     if (!item) return;
-    if (!toggleWatchlist({ ...item, media_type: type })) onNeedLogin();
+    const success = await toggleWatchlist({ ...item, media_type: type });
+    if (!success) onNeedLogin();
   };
 
   if (loading) return <p className="loading">Loading details...</p>;
-  if (!item) return <p className="loading">Could not load details.</p>;
+  if (!item)   return <p className="loading">Could not load details.</p>;
 
   const inWatchlist = isInWatchlist(item.id);
 
-  // Helpers
-  const fmt = (n) => n ? `$${Number(n).toLocaleString()}` : null;
-  const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : null;
+  const fmt     = (n) => n ? `$${Number(n).toLocaleString()}` : null;
+  const fmtDate = (d) => d
+    ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })
+    : null;
 
   return (
     <div className="details-section">
@@ -228,12 +238,13 @@ function DetailPage({ type, onNeedLogin }) {
       {/* ── Main Info ── */}
       <div className="details-content">
         <img
-          src={item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : "https://via.placeholder.com/300x450"}
+          src={item.poster_path
+            ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
+            : "https://via.placeholder.com/300x450"}
           alt={item.title || item.name}
           className="detail-poster"
         />
         <div className="detail-info">
-
           {item.tagline && <p className="detail-tagline">"{item.tagline}"</p>}
           <h2>{item.title || item.name}</h2>
 
@@ -257,7 +268,9 @@ function DetailPage({ type, onNeedLogin }) {
 
           <div className="detail-actions">
             {trailerKey && (
-              <button className="trailer-btn" onClick={() => setShowTrailer(true)}>▶ Watch Trailer</button>
+              <button className="trailer-btn" onClick={() => setShowTrailer(true)}>
+                ▶ Watch Trailer
+              </button>
             )}
             <button
               className={`watchlist-btn ${inWatchlist ? "in-watchlist" : ""}`}
@@ -269,10 +282,8 @@ function DetailPage({ type, onNeedLogin }) {
         </div>
       </div>
 
-      {/* ── Extra Details Table ── */}
+      {/* ── Extra Details ── */}
       <div className="detail-extra">
-
-        {/* MOVIE specific */}
         {type === "movie" && (
           <div className="detail-facts">
             <h3>🎬 Movie Details</h3>
@@ -316,7 +327,6 @@ function DetailPage({ type, onNeedLogin }) {
           </div>
         )}
 
-        {/* TV specific */}
         {type === "tv" && (
           <div className="detail-facts">
             <h3>📺 Series Details</h3>
@@ -363,7 +373,6 @@ function DetailPage({ type, onNeedLogin }) {
               )}
             </div>
 
-            {/* Next Episode */}
             {item.next_episode_to_air && (
               <div className="episode-card next">
                 <h4>🔜 Next Episode</h4>
@@ -373,7 +382,6 @@ function DetailPage({ type, onNeedLogin }) {
               </div>
             )}
 
-            {/* Last Episode */}
             {item.last_episode_to_air && (
               <div className="episode-card last">
                 <h4>✅ Last Episode</h4>
@@ -383,7 +391,6 @@ function DetailPage({ type, onNeedLogin }) {
               </div>
             )}
 
-            {/* Seasons list */}
             {item.seasons?.length > 0 && (
               <div className="seasons-list">
                 <h4>📋 Seasons</h4>
@@ -391,7 +398,9 @@ function DetailPage({ type, onNeedLogin }) {
                   {item.seasons.filter(s => s.season_number > 0).map((s) => (
                     <div key={s.id} className="season-card">
                       <img
-                        src={s.poster_path ? `https://image.tmdb.org/t/p/w200${s.poster_path}` : "https://via.placeholder.com/100x150?text=?"}
+                        src={s.poster_path
+                          ? `https://image.tmdb.org/t/p/w200${s.poster_path}`
+                          : "https://via.placeholder.com/100x150?text=?"}
                         alt={s.name}
                       />
                       <div>
@@ -413,17 +422,21 @@ function DetailPage({ type, onNeedLogin }) {
         <div className="trailer-section">
           <h3>🎬 Trailer</h3>
           <div className="trailer-embed">
-            <iframe src={`https://www.youtube.com/embed/${trailerKey}?rel=0`} title="Trailer" allowFullScreen />
+            <iframe
+              src={`https://www.youtube.com/embed/${trailerKey}?rel=0`}
+              title="Trailer"
+              allowFullScreen
+            />
           </div>
         </div>
       )}
 
-      {/* ── Cast ── */}
+      {/* ── Cast — onNeedLogin passed so like button can open modal ── */}
       <div className="cast-section">
         <h3>🎭 Cast</h3>
         <div className="cast-grid">
           {cast.map((actor) => (
-            <CastCard key={actor.id} actor={actor} />
+            <CastCard key={actor.id} actor={actor} onNeedLogin={onNeedLogin} />
           ))}
         </div>
       </div>
@@ -467,15 +480,27 @@ function WatchlistPage({ onNeedLogin }) {
   return (
     <div>
       <h2 style={{ marginBottom: "20px" }}>❤️ My Watchlist ({watchlist.length})</h2>
-      {watchlist.length === 0 && <p className="no-data">Your watchlist is empty. Browse and save titles!</p>}
+      {watchlist.length === 0 && (
+        <p className="no-data">Your watchlist is empty. Browse and save titles!</p>
+      )}
       <div className="movies-grid">
         {watchlist.map((item) => (
           <MovieCard
             key={item.id}
-            item={item}
+            item={{
+              // Java API returns tmdbId/mediaType/posterPath — map to TMDB shape
+              ...item,
+              id:           item.tmdbId,
+              media_type:   item.mediaType,
+              poster_path:  item.posterPath,
+            }}
             onSelect={(i) => navigate(`/${i.media_type === "tv" ? "tv" : "movie"}/${i.id}`)}
             isInWatchlist={true}
-            onWatchlist={(i) => toggleWatchlist(i)}
+            onWatchlist={async (i) => {
+              // toggleWatchlist is async — check return value
+              const success = await toggleWatchlist(i);
+              if (!success) onNeedLogin();
+            }}
           />
         ))}
       </div>

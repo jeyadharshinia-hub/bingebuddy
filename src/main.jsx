@@ -2,11 +2,11 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 
-import { AuthProvider } from "./context/AuthProvider";
+import { AuthProvider }     from "./context/AuthProvider";
 import { ActivityProvider } from "./context/ActivityProvider";
 import { WatchlistProvider } from "./context/WatchlistProvider";
-import { CommentProvider } from "./context/CommentProvider";
-import { FilterProvider } from "./context/FilterProvider";
+import { CommentProvider }  from "./context/CommentProvider";
+import { FilterProvider }   from "./context/FilterProvider";
 
 import AppLayout from "./App";
 import "./index.css";
