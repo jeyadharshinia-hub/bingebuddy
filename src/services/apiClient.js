@@ -13,4 +13,17 @@ export const setAuthToken = (token) => {
   }
 };
 
+export const getCastRatingStats  = (actorId) =>
+  apiClient.get(`/cast-ratings/${actorId}/stats`).then(r => r.data);
+
+export const getMyRating = (actorId) =>
+  apiClient.get(`/cast-ratings/${actorId}/my-rating`).then(r => r.data);
+
+export const rateCast = (actorId, rating, actorName, actorPhoto) =>
+  apiClient.post(`/cast-ratings/${actorId}`, { rating, actorName, actorPhoto })
+           .then(r => r.data);
+
+export const getCastLeaderboard = () =>
+  apiClient.get("/cast-ratings/leaderboard").then(r => r.data);
+
 export default apiClient;

@@ -3,20 +3,28 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import useSearchHistory from "../hooks/useSearchHistory";
 import useDebounce from "../hooks/useDebounce";
-import LoginModal from "./LoginModal";
 import { searchMovies } from "../services/api";
 
-export default function Navbar() {
+export default function Navbar({ onNeedLogin }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { history, addToHistory, clearHistory, removeItem } = useSearchHistory();
 
-  const [showLoginModal, setShowLoginModal] = useState(false);
   const [showProfile,    setShowProfile]    = useState(false);
   const [navQuery,       setNavQuery]       = useState("");
   const [navSuggestions, setNavSuggestions] = useState([]);
   const [showHistory,    setShowHistory]    = useState(false);
+  const [darkMode,       setDarkMode]       = useState(() => {
+    return localStorage.getItem("bb_theme") !== "light";
+  });
+
   const debouncedNav = useDebounce(navQuery, 400);
+
+  // Apply theme to <html> element on mount and when toggled
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", darkMode ? "dark" : "light");
+    localStorage.setItem("bb_theme", darkMode ? "dark" : "light");
+  }, [darkMode]);
 
   useEffect(() => {
     if (!debouncedNav.trim()) {
@@ -68,131 +76,144 @@ export default function Navbar() {
   };
 
   return (
-    <>
-      <nav className="navbar">
-        <Link to="/" className="nav-logo">🎬 Binge<span>Buddy</span></Link>
+    <nav className="navbar">
+      <Link to="/" className="nav-logo">🎬 Binge<span>Buddy</span></Link>
 
-        <div className="nav-links">
-          <Link to="/">Home</Link>
-          <Link to="/?section=trending">Trending</Link>
-          <Link to="/?section=movies">Movies</Link>
-          <Link to="/?section=series">Series</Link>
-          <Link to="/discover">🎯 Discover</Link>
-          <Link to="/watchlist">❤️ Watchlist</Link>
-        </div>
+      <div className="nav-links">
+        <Link to="/">Home</Link>
+        <Link to="/?section=trending">Trending</Link>
+        <Link to="/?section=movies">Movies</Link>
+        <Link to="/?section=series">Series</Link>
+        <Link to="/discover">Discover</Link>
+        <Link to="/watchlist">Watchlist</Link>
+        <Link to="/leaderboard">Leaderboard</Link>
+      </div>
 
-        {/* Search */}
-        <div className="nav-search-wrapper">
-          <form onSubmit={handleNavSearch} className="nav-search-form">
-            <input
-              value={navQuery}
-              onChange={(e) => setNavQuery(e.target.value)}
-              onFocus={() => setShowHistory(true)}
-              placeholder="🔍 Search..."
-              className="nav-search-input"
-            />
-          </form>
+      {/* Search */}
+      <div className="nav-search-wrapper">
+        <form onSubmit={handleNavSearch} className="nav-search-form">
+          <input
+            value={navQuery}
+            onChange={(e) => setNavQuery(e.target.value)}
+            onFocus={() => setShowHistory(true)}
+            placeholder="Search movies, series..."
+            className="nav-search-input"
+          />
+        </form>
 
-          {navSuggestions.length > 0 && (
-            <ul className="nav-suggestions">
-              {navSuggestions.map((item) => (
-                <li key={item.id} onClick={() => handleNavSelect(item)}>
-                  {item.poster_path && (
-                    <img src={`https://image.tmdb.org/t/p/w92${item.poster_path}`} alt="" />
-                  )}
-                  <div>
-                    <span>{item.title || item.name}</span>
-                    <small>
-                      {item.media_type === "tv" ? "TV Series" : "Movie"} •{" "}
-                      {(item.release_date || item.first_air_date || "").slice(0, 4)}
-                    </small>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {showHistory && !navQuery && history.length > 0 && (
-            <div className="search-history-dropdown">
-              <div className="history-header">
-                <span>Recent Searches</span>
-                <button onClick={clearHistory}>Clear</button>
-              </div>
-              {history.map((q) => (
-                <div key={q} className="history-item">
-                  <span onClick={() => handleHistoryClick(q)}>🕐 {q}</span>
-                  <button onClick={() => removeItem(q)}>✕</button>
+        {navSuggestions.length > 0 && (
+          <ul className="nav-suggestions">
+            {navSuggestions.map((item) => (
+              <li key={item.id} onClick={() => handleNavSelect(item)}>
+                {item.poster_path && (
+                  <img src={`https://image.tmdb.org/t/p/w92${item.poster_path}`} alt="" />
+                )}
+                <div>
+                  <span>{item.title || item.name}</span>
+                  <small>
+                    {item.media_type === "tv" ? "TV Series" : "Movie"} •{" "}
+                    {(item.release_date || item.first_air_date || "").slice(0, 4)}
+                  </small>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              </li>
+            ))}
+          </ul>
+        )}
 
-        {/* Profile — margin-left: auto pushes it to the far right */}
-        <div
-          className="profile-section"
-          style={{ marginLeft: "auto" }}
-          onClick={() => setShowProfile(!showProfile)}
-        >
-          {user ? (
-            <img
-              src={user.photoURL || "https://cdn-icons-png.flaticon.com/512/149/149071.png"}
-              alt="profile"
-              className="profile-pic"
-            />
-          ) : (
+        {showHistory && !navQuery && history.length > 0 && (
+          <div className="search-history-dropdown">
+            <div className="history-header">
+              <span>Recent Searches</span>
+              <button onClick={clearHistory}>Clear</button>
+            </div>
+            {history.map((q) => (
+              <div key={q} className="history-item">
+                <span onClick={() => handleHistoryClick(q)}>🕐 {q}</span>
+                <button onClick={() => removeItem(q)}>✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Theme Toggle */}
+      <button
+        className="theme-toggle-btn"
+        onClick={() => setDarkMode((d) => !d)}
+        title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+      >
+        {darkMode ? "☀️" : "🌙"}
+      </button>
+
+      {/* Profile */}
+      <div
+        className="profile-section"
+        onClick={() => user && setShowProfile((p) => !p)}
+      >
+        {user ? (
+          <img
+            src={user.photoURL || "https://cdn-icons-png.flaticon.com/512/149/149071.png"}
+            alt="profile"
+            className="profile-pic"
+          />
+        ) : (
+          <button
+            className="nav-signin-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onNeedLogin();
+            }}
+          >
+            Sign In
+          </button>
+        )}
+
+        {showProfile && user && (
+          <div className="profile-dropdown">
+            <div className="profile-info">
+              <img
+                src={user.photoURL || "https://cdn-icons-png.flaticon.com/512/149/149071.png"}
+                alt=""
+              />
+              <div>
+                <strong>{user.displayName}</strong>
+                <small>{user.email}</small>
+              </div>
+            </div>
+            <Link to="/profile" className="profile-link" onClick={() => setShowProfile(false)}>
+              My Profile
+            </Link>
+            <Link to="/watchlist" className="profile-link" onClick={() => setShowProfile(false)}>
+              Watchlist
+            </Link>
             <button
-              className="nav-signin-btn"
+              className="logout-btn"
               onClick={(e) => {
                 e.stopPropagation();
-                setShowLoginModal(true);
+                logout();
+                setShowProfile(false);
               }}
             >
-              Sign In
+              Sign Out
             </button>
-          )}
+          </div>
+        )}
 
-          {showProfile && user && (
-            <div className="profile-dropdown">
-              <div className="profile-info">
-                <img
-                  src={user.photoURL || "https://cdn-icons-png.flaticon.com/512/149/149071.png"}
-                  alt=""
-                />
-                <div>
-                  <strong>{user.displayName}</strong>
-                  <small>{user.email}</small>
-                </div>
-              </div>
-              <Link to="/profile" className="profile-link">👤 My Profile</Link>
-              <Link to="/watchlist" className="profile-link">❤️ Watchlist</Link>
-              <button
-                className="logout-btn"
-                onClick={(e) => { e.stopPropagation(); logout(); }}
-              >
-                🚪 Sign Out
-              </button>
-            </div>
-          )}
-
-          {showProfile && !user && (
-            <div className="profile-dropdown">
-              <button
-                className="signin-prompt"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowProfile(false);
-                  setShowLoginModal(true);
-                }}
-              >
-                Sign In / Register
-              </button>
-            </div>
-          )}
-        </div>
-      </nav>
-
-      {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
-    </>
+        {showProfile && !user && (
+          <div className="profile-dropdown">
+            <button
+              className="signin-prompt"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowProfile(false);
+                onNeedLogin();
+              }}
+            >
+              Sign In / Register
+            </button>
+          </div>
+        )}
+      </div>
+    </nav>
   );
 }

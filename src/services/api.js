@@ -126,3 +126,22 @@ export const discoverMovies = async ({
     total_results: res.data.total_results,
   };
 };
+
+export const getWatchProviders = async (id, type) => {
+  const res = await axios.get(`${BASE_URL}/${type}/${id}/watch/providers`, {
+    params: { api_key: API_KEY },
+  });
+  // IN = India, US = fallback
+  const results = res.data.results;
+  return results?.IN || results?.US || null;
+};
+
+export const getRecommendations = async (id, type) => {
+  const res = await axios.get(`${BASE_URL}/${type}/${id}/recommendations`, {
+    params: { api_key: API_KEY, page: 1 },
+  });
+  return res.data.results.slice(0, 12).map((i) => ({
+    ...i,
+    media_type: type,
+  }));
+};

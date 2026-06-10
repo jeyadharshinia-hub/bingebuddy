@@ -9,33 +9,38 @@ import LoginModal from "./components/LoginModal";
 import PersonPage from "./pages/PersonPage";
 import ProfilePage from "./pages/ProfilePage";
 import Discover from "./pages/Discover";
-import { searchMovies, getMovieDetails, getMovieCast, getTrending, getVideos } from "./services/api";
+import {
+  searchMovies, getMovieDetails, getMovieCast,
+  getTrending, getVideos, getWatchProviders, getRecommendations,
+} from "./services/api";
 import { useAuth } from "./hooks/useAuth";
 import { useWatchlist } from "./hooks/useWatchlist";
 import useSearchHistory from "./hooks/useSearchHistory";
+import CastLeaderboard from "./pages/CastLeaderboard";
+import Footer from "./components/Footer";
 
 /* ─── Root layout ───────────────────────────────────────── */
 function AppLayout() {
   const [filter,    setFilter]    = useState({});
   const [showLogin, setShowLogin] = useState(false);
-
   const openLogin = () => setShowLogin(true);
 
   return (
     <>
-      <Navbar onFilterChange={setFilter} currentFilter={filter} />
+      <Navbar onFilterChange={setFilter} currentFilter={filter} onNeedLogin={openLogin} />
       <div className="container">
         <Routes>
-          <Route path="/"          element={<HomePage   filter={filter} onNeedLogin={openLogin} />} />
-          <Route path="/movie/:id" element={<DetailPage type="movie"    onNeedLogin={openLogin} />} />
-          <Route path="/tv/:id"    element={<DetailPage type="tv"       onNeedLogin={openLogin} />} />
-          <Route path="/person/:id" element={<PersonPage               onNeedLogin={openLogin} />} />
-          <Route path="/watchlist" element={<WatchlistPage             onNeedLogin={openLogin} />} />
-          <Route path="/profile"   element={<ProfilePage              onNeedLogin={openLogin} />} />
-          {/* onNeedLogin MUST be passed — Discover has watchlist buttons */}
-          <Route path="/discover"  element={<Discover                 onNeedLogin={openLogin} />} />
+          <Route path="/"           element={<HomePage   filter={filter} onNeedLogin={openLogin} />} />
+          <Route path="/movie/:id"  element={<DetailPage type="movie"    onNeedLogin={openLogin} />} />
+          <Route path="/tv/:id"     element={<DetailPage type="tv"       onNeedLogin={openLogin} />} />
+          <Route path="/person/:id" element={<PersonPage                 onNeedLogin={openLogin} />} />
+          <Route path="/watchlist"  element={<WatchlistPage              onNeedLogin={openLogin} />} />
+          <Route path="/profile"    element={<ProfilePage               onNeedLogin={openLogin} />} />
+          <Route path="/leaderboard" element={<CastLeaderboard />} />
+          <Route path="/discover"   element={<Discover                  onNeedLogin={openLogin} />} />
         </Routes>
       </div>
+      <Footer />
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
     </>
   );
@@ -63,7 +68,6 @@ function HomePage({ filter, onNeedLogin }) {
   useEffect(() => {
     if (!urlQuery) return;
     let active = true;
-
     const loadTimer = setTimeout(() => { if (active) setLoading(true); }, 0);
 
     searchMovies(urlQuery)
@@ -91,7 +95,6 @@ function HomePage({ filter, onNeedLogin }) {
     navigate(`/${item.media_type === "tv" ? "tv" : "movie"}/${item.id}`);
   };
 
-  // toggleWatchlist is async — must await to get the boolean back
   const handleWatchlist = async (item) => {
     const success = await toggleWatchlist(item);
     if (!success) onNeedLogin();
@@ -116,7 +119,7 @@ function HomePage({ filter, onNeedLogin }) {
       {hasSearched && (
         <>
           <div className="results-header">
-            <h2>🔎 Results for "{urlQuery}"</h2>
+            <h2>Results for "{urlQuery}"</h2>
             <button className="back-btn" onClick={() => navigate(-1)}>← Back</button>
           </div>
           {loading ? (
@@ -142,12 +145,12 @@ function HomePage({ filter, onNeedLogin }) {
       {!hasSearched && (
         <>
           <div className="section-nav">
-            <Link to="/"                  className={!urlSection                 ? "active" : ""}>All</Link>
-            <Link to="/?section=movies"   className={urlSection === "movies"     ? "active" : ""}>Movies</Link>
-            <Link to="/?section=series"   className={urlSection === "series"     ? "active" : ""}>Series</Link>
-            <Link to="/?section=trending" className={urlSection === "trending"   ? "active" : ""}>Trending</Link>
+            <Link to="/"                  className={!urlSection               ? "active" : ""}>All</Link>
+            <Link to="/?section=movies"   className={urlSection === "movies"   ? "active" : ""}>Movies</Link>
+            <Link to="/?section=series"   className={urlSection === "series"   ? "active" : ""}>Series</Link>
+            <Link to="/?section=trending" className={urlSection === "trending" ? "active" : ""}>Trending</Link>
           </div>
-          <h2>🔥 {urlSection === "movies" ? "Movies" : urlSection === "series" ? "TV Series" : "Trending Today"}</h2>
+          <h2>{urlSection === "movies" ? "Movies" : urlSection === "series" ? "TV Series" : "Trending Today"}</h2>
           <div className="movies-grid">
             {displayTrending.map((item) => (
               <MovieCard
@@ -169,11 +172,13 @@ function HomePage({ filter, onNeedLogin }) {
 function DetailPage({ type, onNeedLogin }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [item,        setItem]        = useState(null);
-  const [cast,        setCast]        = useState([]);
-  const [trailerKey,  setTrailerKey]  = useState(null);
-  const [showTrailer, setShowTrailer] = useState(false);
-  const [loading,     setLoading]     = useState(true);
+  const [item,            setItem]            = useState(null);
+  const [cast,            setCast]            = useState([]);
+  const [trailerKey,      setTrailerKey]      = useState(null);
+  const [showTrailer,     setShowTrailer]     = useState(false);
+  const [loading,         setLoading]         = useState(true);
+  const [providers,       setProviders]       = useState(null);
+  const [recommendations, setRecommendations] = useState([]);
   const { toggleWatchlist, isInWatchlist } = useWatchlist();
   const prevIdRef = useRef(null);
 
@@ -191,12 +196,16 @@ function DetailPage({ type, onNeedLogin }) {
       getMovieDetails(id, type),
       getMovieCast(id, type),
       getVideos(id, type),
+      getWatchProviders(id, type),
+      getRecommendations(id, type),
     ])
-      .then(([details, castData, trailer]) => {
+      .then(([details, castData, trailer, providerData, recData]) => {
         if (!active) return;
         setItem(details);
         setCast(castData.slice(0, 10));
         setTrailerKey(trailer);
+        setProviders(providerData);
+        setRecommendations(recData);
       })
       .catch((err) => { if (active) console.error(err); })
       .finally(() => { if (active) setLoading(false); });
@@ -207,10 +216,18 @@ function DetailPage({ type, onNeedLogin }) {
     };
   }, [id, type]);
 
-  // toggleWatchlist is async — must await to get the boolean back
   const handleWatchlist = async () => {
     if (!item) return;
     const success = await toggleWatchlist({ ...item, media_type: type });
+    if (!success) onNeedLogin();
+  };
+
+  const handleSelect = (rec) => {
+    navigate(`/${rec.media_type === "tv" ? "tv" : "movie"}/${rec.id}`);
+  };
+
+  const handleRecWatchlist = async (rec) => {
+    const success = await toggleWatchlist(rec);
     if (!success) onNeedLogin();
   };
 
@@ -218,7 +235,6 @@ function DetailPage({ type, onNeedLogin }) {
   if (!item)   return <p className="loading">Could not load details.</p>;
 
   const inWatchlist = isInWatchlist(item.id);
-
   const fmt     = (n) => n ? `$${Number(n).toLocaleString()}` : null;
   const fmtDate = (d) => d
     ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })
@@ -279,6 +295,37 @@ function DetailPage({ type, onNeedLogin }) {
               {inWatchlist ? "❤️ Saved" : "🤍 Watchlist"}
             </button>
           </div>
+
+          {/* ── Watch Providers ── */}
+          {providers && (
+            <div className="watch-providers">
+              <h4>Available On</h4>
+              <div className="providers-row">
+                {[
+                  ...(providers.flatrate || []),
+                  ...(providers.free     || []),
+                  ...(providers.ads      || []),
+                ]
+                  .filter((v, i, a) => a.findIndex(p => p.provider_id === v.provider_id) === i)
+                  .slice(0, 6)
+                  .map((p) => (
+                    <a
+                      key={p.provider_id}
+                      href={providers.link}
+                      target="_blank"
+                      rel="noreferrer"
+                      title={p.provider_name}
+                    >
+                      <img
+                        src={`https://image.tmdb.org/t/p/w92${p.logo_path}`}
+                        alt={p.provider_name}
+                        className="provider-logo"
+                      />
+                    </a>
+                  ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -286,7 +333,7 @@ function DetailPage({ type, onNeedLogin }) {
       <div className="detail-extra">
         {type === "movie" && (
           <div className="detail-facts">
-            <h3>🎬 Movie Details</h3>
+            <h3>Movie Details</h3>
             <div className="facts-grid">
               {item.original_title && item.original_title !== item.title && (
                 <div className="fact-item"><span className="fact-label">Original Title</span><span>{item.original_title}</span></div>
@@ -304,7 +351,7 @@ function DetailPage({ type, onNeedLogin }) {
                 <div className="fact-item"><span className="fact-label">Revenue</span><span>{fmt(item.revenue)}</span></div>
               )}
               {item.popularity && (
-                <div className="fact-item"><span className="fact-label">Popularity</span><span>🔥 {item.popularity.toFixed(1)}</span></div>
+                <div className="fact-item"><span className="fact-label">Popularity</span><span>{item.popularity.toFixed(1)}</span></div>
               )}
               {item.spoken_languages?.length > 0 && (
                 <div className="fact-item"><span className="fact-label">Languages</span><span>{item.spoken_languages.map(l => l.english_name).join(", ")}</span></div>
@@ -329,7 +376,7 @@ function DetailPage({ type, onNeedLogin }) {
 
         {type === "tv" && (
           <div className="detail-facts">
-            <h3>📺 Series Details</h3>
+            <h3>Series Details</h3>
             <div className="facts-grid">
               {item.original_name && item.original_name !== item.name && (
                 <div className="fact-item"><span className="fact-label">Original Name</span><span>{item.original_name}</span></div>
@@ -351,7 +398,7 @@ function DetailPage({ type, onNeedLogin }) {
               )}
               <div className="fact-item">
                 <span className="fact-label">In Production</span>
-                <span>{item.in_production ? "✅ Yes" : "❌ No"}</span>
+                <span>{item.in_production ? "Yes" : "No"}</span>
               </div>
               {item.created_by?.length > 0 && (
                 <div className="fact-item"><span className="fact-label">Created By</span><span>{item.created_by.map(c => c.name).join(", ")}</span></div>
@@ -369,31 +416,31 @@ function DetailPage({ type, onNeedLogin }) {
                 <div className="fact-item"><span className="fact-label">Studios</span><span>{item.production_companies.map(c => c.name).join(", ")}</span></div>
               )}
               {item.popularity && (
-                <div className="fact-item"><span className="fact-label">Popularity</span><span>🔥 {item.popularity.toFixed(1)}</span></div>
+                <div className="fact-item"><span className="fact-label">Popularity</span><span>{item.popularity.toFixed(1)}</span></div>
               )}
             </div>
 
             {item.next_episode_to_air && (
               <div className="episode-card next">
-                <h4>🔜 Next Episode</h4>
+                <h4>Next Episode</h4>
                 <p><strong>S{item.next_episode_to_air.season_number} E{item.next_episode_to_air.episode_number}</strong> — {item.next_episode_to_air.name}</p>
-                <small>📅 {fmtDate(item.next_episode_to_air.air_date)}</small>
+                <small>Airs {fmtDate(item.next_episode_to_air.air_date)}</small>
                 {item.next_episode_to_air.overview && <p className="ep-overview">{item.next_episode_to_air.overview}</p>}
               </div>
             )}
 
             {item.last_episode_to_air && (
               <div className="episode-card last">
-                <h4>✅ Last Episode</h4>
+                <h4>Last Episode</h4>
                 <p><strong>S{item.last_episode_to_air.season_number} E{item.last_episode_to_air.episode_number}</strong> — {item.last_episode_to_air.name}</p>
-                <small>📅 {fmtDate(item.last_episode_to_air.air_date)} • ⭐ {item.last_episode_to_air.vote_average?.toFixed(1)}</small>
+                <small>Aired {fmtDate(item.last_episode_to_air.air_date)} · ⭐ {item.last_episode_to_air.vote_average?.toFixed(1)}</small>
                 {item.last_episode_to_air.overview && <p className="ep-overview">{item.last_episode_to_air.overview}</p>}
               </div>
             )}
 
             {item.seasons?.length > 0 && (
               <div className="seasons-list">
-                <h4>📋 Seasons</h4>
+                <h4>Seasons</h4>
                 <div className="seasons-grid">
                   {item.seasons.filter(s => s.season_number > 0).map((s) => (
                     <div key={s.id} className="season-card">
@@ -406,7 +453,7 @@ function DetailPage({ type, onNeedLogin }) {
                       <div>
                         <p>{s.name}</p>
                         <small>{s.episode_count} episodes</small>
-                        {s.air_date && <small> • {s.air_date.slice(0, 4)}</small>}
+                        {s.air_date && <small> · {s.air_date.slice(0, 4)}</small>}
                       </div>
                     </div>
                   ))}
@@ -420,7 +467,7 @@ function DetailPage({ type, onNeedLogin }) {
       {/* ── Trailer ── */}
       {trailerKey && (
         <div className="trailer-section">
-          <h3>🎬 Trailer</h3>
+          <h3>Trailer</h3>
           <div className="trailer-embed">
             <iframe
               src={`https://www.youtube.com/embed/${trailerKey}?rel=0`}
@@ -431,9 +478,9 @@ function DetailPage({ type, onNeedLogin }) {
         </div>
       )}
 
-      {/* ── Cast — onNeedLogin passed so like button can open modal ── */}
+      {/* ── Cast ── */}
       <div className="cast-section">
-        <h3>🎭 Cast</h3>
+        <h3>Cast</h3>
         <div className="cast-grid">
           {cast.map((actor) => (
             <CastCard key={actor.id} actor={actor} onNeedLogin={onNeedLogin} />
@@ -443,6 +490,24 @@ function DetailPage({ type, onNeedLogin }) {
 
       {/* ── Comments ── */}
       <CommentBox mediaId={`${type}-${id}`} onNeedLogin={onNeedLogin} />
+
+      {/* ── Recommendations ── */}
+      {recommendations.length > 0 && (
+        <div className="recommendations-section">
+          <h3>You Might Also Like</h3>
+          <div className="movies-grid">
+            {recommendations.map((rec) => (
+              <MovieCard
+                key={rec.id}
+                item={rec}
+                onSelect={handleSelect}
+                isInWatchlist={isInWatchlist(rec.id)}
+                onWatchlist={handleRecWatchlist}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Trailer Modal ── */}
       {showTrailer && trailerKey && (
@@ -471,7 +536,7 @@ function WatchlistPage({ onNeedLogin }) {
   if (!user) {
     return (
       <div className="profile-page empty">
-        <h2>❤️ Sign in to access your Watchlist</h2>
+        <h2>Sign in to access your Watchlist</h2>
         <button className="hero-btn primary" onClick={onNeedLogin}>Sign In</button>
       </div>
     );
@@ -479,7 +544,7 @@ function WatchlistPage({ onNeedLogin }) {
 
   return (
     <div>
-      <h2 style={{ marginBottom: "20px" }}>❤️ My Watchlist ({watchlist.length})</h2>
+      <h2 style={{ marginBottom: "20px" }}>My Watchlist ({watchlist.length})</h2>
       {watchlist.length === 0 && (
         <p className="no-data">Your watchlist is empty. Browse and save titles!</p>
       )}
@@ -488,16 +553,14 @@ function WatchlistPage({ onNeedLogin }) {
           <MovieCard
             key={item.id}
             item={{
-              // Java API returns tmdbId/mediaType/posterPath — map to TMDB shape
               ...item,
-              id:           item.tmdbId,
-              media_type:   item.mediaType,
-              poster_path:  item.posterPath,
+              id:          item.tmdbId,
+              media_type:  item.mediaType,
+              poster_path: item.posterPath,
             }}
             onSelect={(i) => navigate(`/${i.media_type === "tv" ? "tv" : "movie"}/${i.id}`)}
             isInWatchlist={true}
             onWatchlist={async (i) => {
-              // toggleWatchlist is async — check return value
               const success = await toggleWatchlist(i);
               if (!success) onNeedLogin();
             }}

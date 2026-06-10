@@ -5,15 +5,15 @@ import MovieCard from "../components/MovieCard";
 import { useWatchlist } from "../hooks/useWatchlist";
 
 const REGIONS = [
-  { code: "US", name: "🇺🇸 USA" },
-  { code: "IN", name: "🇮🇳 India" },
-  { code: "KR", name: "🇰🇷 Korea" },
-  { code: "JP", name: "🇯🇵 Japan" },
-  { code: "CN", name: "🇨🇳 China" },
-  { code: "TH", name: "🇹🇭 Thailand" },
-  { code: "PH", name: "🇵🇭 Philippines" },
-  { code: "GB", name: "🇬🇧 UK" },
-  { code: "FR", name: "🇫🇷 France" },
+  { code: "US", name: "USA" },
+  { code: "IN", name: "India" },
+  { code: "KR", name: "Korea" },
+  { code: "JP", name: "Japan" },
+  { code: "CN", name: "China" },
+  { code: "TH", name: "Thailand" },
+  { code: "PH", name: "Philippines" },
+  { code: "GB", name: "UK" },
+  { code: "FR", name: "France" },
 ];
 
 const DEFAULT_FILTERS = {
@@ -27,28 +27,48 @@ export default function DiscoverPage({ onNeedLogin }) {
   const navigate = useNavigate();
   const { toggleWatchlist, isInWatchlist } = useWatchlist();
 
-  const [movies,     setMovies]     = useState([]);
-  const [genres,     setGenres]     = useState([]);
-  const [loading,    setLoading]    = useState(false);
-  const [page,       setPage]       = useState(1);
+  const [movies, setMovies] = useState([]);
+  const [genres, setGenres] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(() => {
+    return Number(
+      localStorage.getItem("discoverPage")
+    ) || 1;
+  });
   const [totalPages, setTotalPages] = useState(1);
-  const [filters,    setFilters]    = useState(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState(() => {
+    const saved = localStorage.getItem("discoverFilters");
+    return saved ? JSON.parse(saved) : DEFAULT_FILTERS;
+  });
 
   const prevFiltersRef = useRef(filters);
+  const sentinelRef = useRef(null); // element at bottom of list
+  const loadingRef = useRef(false); // prevent double-firing
 
   // Fetch genres when content type changes
   useEffect(() => {
-    async function fetchGenres() {
-      try {
-        const data = await getGenres(filters.type);
-        setGenres(data);
-      } catch (err) {
-        console.error(err);
-      }
-    }
-    fetchGenres();
+    getGenres(filters.type).then(setGenres).catch(console.error);
   }, [filters.type]);
 
+  useEffect(() => {
+    localStorage.setItem(
+      "discoverFilters",
+      JSON.stringify(filters)
+    );
+  }, [filters]);
+  useEffect(() => {
+    localStorage.setItem("discoverPage", page);
+  }, [page]);
+
+  useEffect(() => {
+  const savedScroll = localStorage.getItem("discoverScroll");
+
+  if (savedScroll) {
+    setTimeout(() => {
+      window.scrollTo(0, Number(savedScroll));
+    }, 300);
+  }
+}, []);
   // Fetch movies when filters or page changes
   useEffect(() => {
     let active = true;
@@ -57,33 +77,59 @@ export default function DiscoverPage({ onNeedLogin }) {
     prevFiltersRef.current = filters;
     const currentPage = filtersChanged ? 1 : page;
 
-    async function fetchMovies() {
-      try {
-        if (active) setLoading(true);
+    loadingRef.current = true;
 
-        const data = await discoverMovies({ ...filters, page: currentPage });
+    const timer = setTimeout(() => {
+      if (active) setLoading(true);
+    }, 0);
+
+    discoverMovies({ ...filters, page: currentPage })
+      .then((data) => {
         if (!active) return;
-
         setTotalPages(data.total_pages);
-
         const results = filters.genre
           ? data.results.filter((m) => m.genre_ids?.includes(Number(filters.genre)))
           : data.results;
-
         setMovies((prev) => currentPage === 1 ? results : [...prev, ...results]);
-
         if (filtersChanged && page !== 1) setPage(1);
+      })
+      .catch((err) => { if (active) console.error(err); })
+      .finally(() => {
+        if (active) {
+          setLoading(false);
+          loadingRef.current = false;
+        }
+      });
 
-      } catch (err) {
-        if (active) console.error(err);
-      } finally {
-        if (active) setLoading(false);
-      }
-    }
-
-    fetchMovies();
-    return () => { active = false; };
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
   }, [filters, page]);
+
+
+  // IntersectionObserver — fires when sentinel div scrolls into view
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        // Only load next page if:
+        // - sentinel is visible
+        // - not already loading
+        // - more pages exist
+        if (entry.isIntersecting && !loadingRef.current && page < totalPages) {
+          setPage((p) => p + 1);
+        }
+      },
+      { rootMargin: "200px" } // trigger 200px before sentinel reaches viewport
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [page, totalPages]);
 
   const updateFilter = (key, value) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -99,14 +145,14 @@ export default function DiscoverPage({ onNeedLogin }) {
   };
 
   const clearFilters = () => {
+    localStorage.removeItem("discoverFilters");
     setFilters(DEFAULT_FILTERS);
     setPage(1);
   };
 
-const handleWatchlist = async (item) => {
-  const success = await toggleWatchlist(item);
-  if (!success) onNeedLogin();
-};
+  const handleWatchlist = (item) => {
+    if (!toggleWatchlist(item)) onNeedLogin();
+  };
 
   return (
     <div className="discover-page">
@@ -200,7 +246,14 @@ const handleWatchlist = async (item) => {
               <MovieCard
                 key={movie.id}
                 item={{ ...movie, media_type: filters.type }}
-                onSelect={(i) => navigate(`/${filters.type}/${i.id}`)}
+                onSelect={(i) => {
+                  localStorage.setItem(
+                    "discoverScroll",
+                    window.scrollY
+                  );
+
+                  navigate(`/${filters.type}/${i.id}`);
+                }}
                 isInWatchlist={isInWatchlist(movie.id)}
                 onWatchlist={handleWatchlist}
               />
@@ -208,17 +261,20 @@ const handleWatchlist = async (item) => {
           </div>
         )}
 
-        {!loading && page < totalPages && (
-          <div style={{ textAlign: "center", margin: "28px 0" }}>
-            <button className="load-more-btn" onClick={() => setPage((p) => p + 1)}>
-              Load More
-            </button>
-          </div>
+        {/* Sentinel — IntersectionObserver watches this */}
+        <div ref={sentinelRef} style={{ height: "1px" }} />
+
+        {/* Loading spinner for subsequent pages */}
+        {loading && page > 1 && (
+          <p className="loading" style={{ padding: "20px", textAlign: "center" }}>
+            Loading more...
+          </p>
         )}
 
-        {loading && page > 1 && (
-          <p className="loading" style={{ textAlign: "center", padding: "20px" }}>
-            Loading more...
+        {/* End of results */}
+        {!loading && page >= totalPages && movies.length > 0 && (
+          <p style={{ textAlign: "center", color: "var(--text-muted)", padding: "20px", fontSize: "13px" }}>
+            You've seen everything ✓
           </p>
         )}
       </div>
