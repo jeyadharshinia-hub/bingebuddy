@@ -70,17 +70,35 @@ body {
 }
 
 .nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+
   font-family: 'Bebas Neue', sans-serif;
   font-size: 26px;
-  color: var(--text);
   text-decoration: none;
   letter-spacing: 1px;
   white-space: nowrap;
   flex-shrink: 0;
 }
 
+.nav-logo-img {
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
+}
+
+.binge,
+.buddy {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 36px;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+  line-height: 1;
+}
+
 .nav-logo span {
-  color: var(--red);
+  font-weight: 700;
 }
 
 .nav-links {
@@ -2559,3 +2577,109 @@ h2 {
     text-align: center;
   }
 }
+
+/* ── Comment Replies & Actions ──────────────────────────── */
+.comment-reply {
+  margin-left: 48px;
+  border-left: 2px solid var(--border);
+  padding-left: 12px;
+}
+
+.replies-list {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.comment-action-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.comment-action-btn:hover {
+  color: var(--text);
+}
+
+.comment-action-btn.delete:hover {
+  color: var(--red);
+}
+
+.comment-edit-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.comment-edit-row input {
+  flex: 1;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+}
+
+.comment-edit-row input:focus {
+  border-color: var(--red);
+}
+
+.comment-cancel-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.edited-badge {
+  font-size: 10px;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-left: 4px;
+}
+
+.reply-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface2);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.reply-indicator strong {
+  color: var(--text);
+}
+
+.reply-indicator button {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  margin-left: auto;
+  font-size: 12px;
+}
+
+

@@ -3,11 +3,8 @@ import { CommentContext } from "./CommentContext";
 import apiClient from "../services/apiClient";
 
 export function CommentProvider({ children }) {
-  // Cache: { [mediaId]: Comment[] }
-  // Avoids re-fetching on every render while keeping data fresh after posts
   const [cache, setCache] = useState({});
 
-  // Fetch comments for a media item from MySQL
   const fetchComments = useCallback(async (mediaId) => {
     try {
       const res = await apiClient.get(`/comments/${mediaId}`);
@@ -19,11 +16,8 @@ export function CommentProvider({ children }) {
     }
   }, []);
 
-  // Returns cached comments or empty array
-  // Components should call fetchComments(mediaId) on mount to populate cache
   const getComments = (mediaId) => cache[mediaId] || [];
 
-  // Post a new comment to MySQL
   const addComment = async (mediaId, comment) => {
     try {
       const payload = {
@@ -31,16 +25,27 @@ export function CommentProvider({ children }) {
         mediaTitle: comment.mediaTitle || "",
         text:       comment.text,
         rating:     comment.rating || 0,
+        parentId:   comment.parentId || null,
       };
-
       const res = await apiClient.post("/comments", payload);
-
-      // Update cache immediately so UI re-renders without refetch
-      setCache((prev) => ({
-        ...prev,
-        [mediaId]: [res.data, ...(prev[mediaId] || [])],
-      }));
-
+      // If it's a reply add it under parent, else prepend to top level
+      setCache((prev) => {
+        const existing = prev[mediaId] || [];
+        if (comment.parentId) {
+          return {
+            ...prev,
+            [mediaId]: existing.map((c) =>
+              c.id === comment.parentId
+                ? { ...c, replies: [...(c.replies || []), res.data] }
+                : c
+            ),
+          };
+        }
+        return {
+          ...prev,
+          [mediaId]: [{ ...res.data, replies: [] }, ...existing],
+        };
+      });
       return res.data;
     } catch (err) {
       console.error("Failed to post comment:", err);
@@ -48,7 +53,42 @@ export function CommentProvider({ children }) {
     }
   };
 
-  // Fetch activity for the profile page
+  const editComment = async (mediaId, id, text) => {
+    const res = await apiClient.put(`/comments/${id}`, { text });
+    setCache((prev) => {
+      const existing = prev[mediaId] || [];
+      return {
+        ...prev,
+        [mediaId]: existing.map((c) => {
+          if (c.id === id) return { ...c, text: res.data.text, isEdited: true };
+          // check replies
+          return {
+            ...c,
+            replies: (c.replies || []).map((r) =>
+              r.id === id ? { ...r, text: res.data.text, isEdited: true } : r
+            ),
+          };
+        }),
+      };
+    });
+  };
+
+  const deleteComment = async (mediaId, id) => {
+    await apiClient.delete(`/comments/${id}`);
+    setCache((prev) => {
+      const existing = prev[mediaId] || [];
+      return {
+        ...prev,
+        [mediaId]: existing
+          .filter((c) => c.id !== id)
+          .map((c) => ({
+            ...c,
+            replies: (c.replies || []).filter((r) => r.id !== id),
+          })),
+      };
+    });
+  };
+
   const getMyActivity = async () => {
     try {
       const res = await apiClient.get("/comments/my-activity");
@@ -61,7 +101,8 @@ export function CommentProvider({ children }) {
 
   return (
     <CommentContext.Provider
-      value={{ getComments, fetchComments, addComment, getMyActivity }}
+      value={{ getComments, fetchComments, addComment,
+               editComment, deleteComment, getMyActivity }}
     >
       {children}
     </CommentContext.Provider>

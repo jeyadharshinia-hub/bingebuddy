@@ -4,17 +4,17 @@ import { useAuth } from "../hooks/useAuth";
 import useSearchHistory from "../hooks/useSearchHistory";
 import useDebounce from "../hooks/useDebounce";
 import { searchMovies } from "../services/api";
-
+import logo from "../assets/logo.png";
 export default function Navbar({ onNeedLogin }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { history, addToHistory, clearHistory, removeItem } = useSearchHistory();
 
-  const [showProfile,    setShowProfile]    = useState(false);
-  const [navQuery,       setNavQuery]       = useState("");
+  const [showProfile, setShowProfile] = useState(false);
+  const [navQuery, setNavQuery] = useState("");
   const [navSuggestions, setNavSuggestions] = useState([]);
-  const [showHistory,    setShowHistory]    = useState(false);
-  const [darkMode,       setDarkMode]       = useState(() => {
+  const [showHistory, setShowHistory] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem("bb_theme") !== "light";
   });
 
@@ -34,7 +34,7 @@ export default function Navbar({ onNeedLogin }) {
     let active = true;
     searchMovies(debouncedNav)
       .then((data) => { if (active) setNavSuggestions(data.slice(0, 5)); })
-      .catch(() => {});
+      .catch(() => { });
     return () => { active = false; };
   }, [debouncedNav]);
 
@@ -77,7 +77,11 @@ export default function Navbar({ onNeedLogin }) {
 
   return (
     <nav className="navbar">
-      <Link to="/" className="nav-logo">🎬 Binge<span>Buddy</span></Link>
+      <Link to="/" className="nav-logo">
+        <img src={logo} alt="BingeBuddy" className="nav-logo-img" />
+        <span className="binge">Binge</span>
+        <span className="buddy">Buddy</span>
+      </Link>
 
       <div className="nav-links">
         <Link to="/">Home</Link>
